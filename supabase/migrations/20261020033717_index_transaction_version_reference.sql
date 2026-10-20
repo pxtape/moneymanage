@@ -1,0 +1,1 @@
+create index transaction_versions_transaction_owner on public.transaction_versions(transaction_id,owner_id);

@@ -41,6 +41,8 @@ jobs:
           done
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/authorization.sql
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/registration-closed.sql
+      - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/financial.sql
+      - run: bash supabase/tests/concurrency.sh
   build:
     runs-on: ubuntu-latest
     steps:

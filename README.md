@@ -1,6 +1,6 @@
 # MONEYSPACE
 
-Thai-first personal and family finance app. **M2 review build**, with a category-first demo and authenticated private onboarding. React, TypeScript, Vite, Tailwind, shadcn-style Button/CVA, Radix Dialog, Recharts, Supabase Auth/Postgres, Vitest and Playwright. No paid AI APIs.
+Thai-first personal and family finance app. **M3 review build**, with real private accounts, budgets and transactions. React, TypeScript, Vite, Tailwind, shadcn-style Button/CVA, Radix Dialog, Recharts, Supabase Auth/Postgres, Vitest and Playwright. No paid AI APIs.
 
 Live: https://pxtape.github.io/moneymanage/
 
@@ -21,7 +21,7 @@ npm run dev
 
 **Demo space:** synthetic October 2026 dashboard, five-action mobile nav, themes, wallets/envelopes/goals, search, filters and demo CSV. Demo expense entry and custom categories are in memory only, reset on refresh, and never claim sync. Chart, comparisons, envelope/goal cards are illustrative snapshots; monthly totals are not the sum of the recent-transaction subset. Amounts entered in demo use integer satang. Allocation and transfer are not consumption; refunds reduce consumption. Calendar-day averages use elapsed calendar days. Safe-to-spend is a remaining monthly budget estimate, not a cash guarantee.
 
-**Account space:** pre-provisioned username/password login for `tape` and `pat`, sign-out, password change, atomic/idempotent onboarding, personal profile/account opening amount, six starter categories and persistent custom categories. It uses authenticated Supabase rows and never displays demo finances as real. Actual financial recording, budgets, rollover and derived account balances are intentionally disabled until M3.
+**Account space (M3):** pre-provisioned username/password login for `tape` and `pat`, sign-out, password change, atomic/idempotent onboarding, personal profile/account opening amount, six starter categories and persistent custom categories. It uses authenticated Supabase rows and never displays demo finances as real. Real expenses, income, transfers, linked refunds, envelope allocations/rollover, goal earmarks and transaction edit/delete/history are connected. See [M3 review](docs/M3-REVIEW.md) for exact definitions, tests and boundaries.
 
 ## Supabase setup
 
@@ -33,7 +33,7 @@ Dedicated MONEYSPACE project: `mfdttuvsvplbrfmjxxqs`, Singapore, pxtape's Org; q
 4. Never expose service_role, `sb_secret`, database passwords or access tokens in Vite/GitHub Pages. All deployed frontend files are public. RLS enforces data access.
 5. Apply `supabase/migrations/*.sql` once in lexical order to a dedicated empty project. Current migrations have already been applied to MONEYSPACE; do not reapply them there. `supabase/schema.sql` is a reference snapshot, not an extra migration.
 
-All 16 app tables have RLS. NUMERIC(16,2) amounts, UUID IDs, timestamps, soft deletion, composite integrity constraints, indexed ownership/membership predicates and append-only audit metadata are provided. Financial/family writes are denied until reviewed transactional APIs arrive. Internal membership checks read live membership with explicit auth.uid(), never user_metadata. See [M2 review](docs/M2-REVIEW.md) for details and remaining boundaries.
+All 17 app tables have RLS; private request receipts are also protected. NUMERIC(16,2) amounts, UUID IDs, timestamps, soft deletion, composite integrity constraints, indexed ownership/membership predicates and append-only audit metadata are provided. Personal financial writes use the M3 transactional RPC; shared financial mutations remain denied until M5. Internal membership checks read live membership with explicit auth.uid(), never user_metadata. See [M2 review](docs/M2-REVIEW.md) for details and remaining boundaries.
 
 ## Checks
 
@@ -69,10 +69,12 @@ Full checklist: [docs/M2-REVIEW.md](docs/M2-REVIEW.md).
 ## Milestones
 
 - M1: design system, responsive navigation and demo data — delivered.
-- M2: dedicated Supabase schema, Auth, RLS, onboarding, reusable categories — current review.
-- M3: real accounts, budgets, transactions, rollover and balances.
+- M2: dedicated Supabase schema, Auth, RLS, onboarding, reusable categories — delivered.
+- M3: real accounts, budgets, transactions, rollover and balances — current review.
 - M4: derived analytics and deterministic coaching.
 - M5: household mutations/roles/invites, atomic splits and settlements.
 - M6: installable PWA/offline fallback, CSV import/backups, full audit history UX, broader tests and final docs.
 
 `.github/workflows/pages.yml` runs checks and database authorization assertions on pushes to `main`, then deploys `dist/` through GitHub Pages. Both jobs must pass before deployment. No backend secrets are required by CI. Supabase configuration uses a public publishable key plus RLS.
+
+Current manual acceptance checklist and validation limits: [docs/M3-REVIEW.md](docs/M3-REVIEW.md). Existing M2 documents describe earlier stages and are superseded where M3 changes behavior.
