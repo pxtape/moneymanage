@@ -28,3 +28,26 @@
 @media(max-width:640px){.monthly-cashflow .section-heading{align-items:flex-start;flex-wrap:wrap;gap:14px}.monthly-cashflow .section-heading p{line-height:1.9}.cashflow-cards{gap:9px;margin:18px 0}.cashflow-card{padding:15px 12px}.cashflow-card>strong{font-size:21px}.cashflow-card>span{font-size:11px;gap:5px}.cashflow-card>small{font-size:10px}.cashflow-details{grid-template-columns:1fr;gap:22px}.cashflow-key{gap:10px;font-size:10px}.plan-income-input{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) 24px;gap:7px}}
 
 .category-default-tag{display:block;font-size:10px;color:var(--muted);margin-top:4px}.real-main>.pocket-panel{margin-bottom:24px}
+
+/* Final interaction polish: finite, quiet motion with no financial state effects. */
+@keyframes moneyspace-arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes moneyspace-reveal{from{opacity:0}to{opacity:1}}
+@keyframes moneyspace-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes moneyspace-pick{0%{transform:scale(.96)}65%{transform:scale(1.035)}100%{transform:scale(1)}}
+@media(hover:hover) and (pointer:fine){
+ .button:not(:disabled):hover,.quick-category:not(:disabled):hover,.pocket-progress:hover{transform:translateY(-2px);box-shadow:0 6px 18px #00000012}
+ .pocket-progress:hover{border-color:var(--pocket-color,var(--mint))}
+ .transaction-row:hover{background:#80e6bd05}
+}
+@media(prefers-reduced-motion:no-preference){
+ .real-main>.panel,.real-main>.live-overview,.real-main>.budget-money-strip,.real-main>.savings-garden,.real-main>.money-journey{animation:moneyspace-arrive .28s ease-out both}
+ .dialog-overlay[data-state="open"],.dialog-content[data-state="open"]{animation:moneyspace-reveal .16s ease-out both}
+ .ledger-notice{animation:moneyspace-arrive .22s ease-out both}
+ .pocket-track>i,.cashflow-bar>i{transform-origin:left;animation:moneyspace-fill .45s cubic-bezier(.22,.7,.3,1) both;transition:width .35s ease-out}
+ .quick-category.chosen>span{animation:moneyspace-pick .22s ease-out}
+ .button,.quick-category,.pocket-progress,.garden-goal,.cashflow-card,.transaction-row{transition:transform .16s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease}
+ .button:not(:disabled):active,.quick-category:not(:disabled):active,.pocket-progress:active,.transaction-row:active{transform:scale(.985)}
+}
+
+.cashflow-card.reserve{box-shadow:inset 0 1px 0 #80e6bd14}.cashflow-card.deficit{box-shadow:inset 0 1px 0 #f09e8814}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.button:hover,.quick-category:hover,.pocket-progress:hover,.button:active,.quick-category:active,.pocket-progress:active,.transaction-row:active{transform:none!important}}
