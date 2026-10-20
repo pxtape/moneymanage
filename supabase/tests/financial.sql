@@ -8,26 +8,27 @@ insert into public.accounts(owner_id,name,opening_balance) select id,'Bob accoun
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select id::text from m3_users where label='alice'),true);
 do $$
-declare s jsonb; r jsonb; acct uuid; acct2 uuid; cat uuid; env uuid; goal uuid; contribution uuid; expense_id uuid; refund_id uuid; tx uuid; v timestamptz; old_v timestamptz; key uuid; payload jsonb;
+declare s jsonb; r jsonb; acct uuid; cat2 uuid; cat uuid; env uuid; goal uuid; contribution uuid; expense_id uuid; refund_id uuid; tx uuid; v timestamptz; old_v timestamptz; key uuid; payload jsonb;
  m date:=date_trunc('month',timezone('Asia/Bangkok',now()))::date; prev date:=(date_trunc('month',timezone('Asia/Bangkok',now()))-interval '1 month')::date;
 begin
  perform public.complete_onboarding('Alice','Bank',10000.25);
- s:=public.moneyspace_snapshot(m);acct:=(s->'accounts'->0->>'id')::uuid;cat:=(s->'categories'->0->>'id')::uuid;
- env:=(public.moneyspace_write('create_envelope',jsonb_build_object('name','Food','rollover','positive'),gen_random_uuid())->>'id')::uuid;
+ s:=public.moneyspace_snapshot(m);acct:=(s->'accounts'->0->>'id')::uuid;cat:=(s->'categories'->0->>'id')::uuid;cat2:=(s->'categories'->1->>'id')::uuid;
+ env:=(public.moneyspace_write('create_envelope',jsonb_build_object('name','Food and drink','amount','6000.00','category_ids',jsonb_build_array(cat,cat2)),gen_random_uuid())->>'id')::uuid;
  perform public.moneyspace_write('link_category',jsonb_build_object('category_id',cat,'envelope_id',env),gen_random_uuid());
  perform public.moneyspace_write('allocate',jsonb_build_object('month',prev,'envelope_id',env,'amount','5000.00'),gen_random_uuid());
  perform public.moneyspace_write('allocate',jsonb_build_object('month',m,'envelope_id',env,'amount','2000.00'),gen_random_uuid());
  s:=public.moneyspace_snapshot(m);
- if (s->>'cash')::numeric<>10000.25 or (s->>'expenses')::numeric<>0 or (s->'envelopes'->0->>'carried')::numeric<>5000 then raise exception 'FAIL: allocation treated as expense or rollover lost'; end if;
+ if (s->>'cash')::numeric<>10000.25 or (s->>'expenses')::numeric<>0 or (s->'envelopes'->0->>'carried')::numeric<>0 then raise exception 'FAIL: budget treated as expense or previous month carried'; end if;
  perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','account_id',acct,'category_id',cat,'amount','1200.10','date',prev),gen_random_uuid());
  s:=public.moneyspace_snapshot(m);
- if (s->'envelopes'->0->>'carried')::numeric<>3799.90 then raise exception 'FAIL: historical expense not rolled forward'; end if;
+ if (s->'envelopes'->0->>'carried')::numeric<>0 then raise exception 'FAIL: historical expense changed current target'; end if;
  perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','income','account_id',acct,'amount','1000.00','date',m),gen_random_uuid());
  expense_id:=(public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','account_id',acct,'category_id',cat,'amount','800.05','date',m),gen_random_uuid())->>'id')::uuid;
- acct2:=(public.moneyspace_write('create_account',jsonb_build_object('name','Cash','kind','cash','amount','0.00'),gen_random_uuid())->>'id')::uuid;
- perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','transfer','account_id',acct,'destination_id',acct2,'amount','2000.00','date',m),gen_random_uuid());
  s:=public.moneyspace_snapshot(m);
- if (s->>'cash')::numeric<>9000.10 or (s->>'expenses')::numeric<>800.05 then raise exception 'FAIL: transfer double counted'; end if;
+ if (s->>'cash')::numeric<>9000.10 or (s->>'expenses')::numeric<>800.05 then raise exception 'FAIL: money log incorrect'; end if;
+ if (select count(*) from public.categories where default_envelope_id=env)<>2 then raise exception 'FAIL: multi-category budget mapping';end if;
+ begin perform public.moneyspace_write('create_account',jsonb_build_object('name','Extra','amount','0'),gen_random_uuid());raise exception 'FAIL: multiple account mode';exception when raise_exception then if sqlerrm<>'SINGLE_MONEY_LOG' then raise;end if;end;
+ begin perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','transfer','amount','5','date',m),gen_random_uuid());raise exception 'FAIL: transfer mode';exception when raise_exception then if sqlerrm<>'SINGLE_MONEY_LOG' then raise;end if;end;
  refund_id:=(public.moneyspace_write('add_transaction',jsonb_build_object('kind','refund','account_id',acct,'refund_of_id',expense_id,'amount','100.00','date',m),gen_random_uuid())->>'id')::uuid;
  s:=public.moneyspace_snapshot(m);
  if (s->>'cash')::numeric<>9100.10 or (s->>'expenses')::numeric<>700.05 then raise exception 'FAIL: refund not offset'; end if;
@@ -38,12 +39,10 @@ begin
  contribution:=(public.moneyspace_write('earmark_goal',jsonb_build_object('goal_id',goal,'account_id',acct,'amount','1000.00'),gen_random_uuid())->>'id')::uuid;
  s:=public.moneyspace_snapshot(m);
  if (s->>'cash')::numeric<>9100.10 or (s->>'expenses')::numeric<>700.05 or (s->>'savings')::numeric<>1000 then raise exception 'FAIL: earmark counted as consumption'; end if;
- begin
+ -- Budgets may exceed money. They neither reserve cash nor block savings.
  perform public.moneyspace_write('allocate',jsonb_build_object('month',m,'envelope_id',env,'amount','20000.00'),gen_random_uuid());
- raise exception 'FAIL: over-allocation accepted';exception when raise_exception then if sqlerrm<>'INSUFFICIENT_UNALLOCATED' then raise;end if;end;
- begin
- perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','transfer','account_id',acct,'destination_id',acct2,'amount','7000.00','date',m),gen_random_uuid());
- raise exception 'FAIL: reserved savings spent';exception when raise_exception then if sqlerrm<>'ACCOUNT_FUNDS_RESERVED_OR_INSUFFICIENT' then raise;end if;end;
+ s:=public.moneyspace_snapshot(m);
+ if (s->>'cash')::numeric<>9100.10 or (s->>'expenses')::numeric<>700.05 then raise exception 'FAIL: target consumes money';end if;
  key:=gen_random_uuid();payload:=jsonb_build_object('kind','expense','account_id',acct,'category_id',cat,'amount','55.55','date',m);
  tx:=(public.moneyspace_write('add_transaction',payload,key)->>'id')::uuid;
  if (public.moneyspace_write('add_transaction',payload,key)->>'id')::uuid<>tx then raise exception 'FAIL: retry result changed';end if;
@@ -62,26 +61,31 @@ begin
  -- Direct opening-balance inserts are no longer an escape from transactional validation.
  begin insert into public.accounts(owner_id,name,opening_balance) values(auth.uid(),'Bypass',-100000);raise exception 'FAIL: direct account write accepted';exception when insufficient_privilege then null;end;
  begin perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','account_id',acct,'category_id',cat,'amount','1.001','date',m),gen_random_uuid());raise exception 'FAIL: fractional satang';exception when raise_exception then if sqlerrm<>'INVALID_AMOUNT' then raise;end if;end;
- -- Full rollover carries negative balances; none discards the previous remainder.
- env:=(public.moneyspace_write('create_envelope',jsonb_build_object('name','Full','rollover','full'),gen_random_uuid())->>'id')::uuid;
- perform public.moneyspace_write('allocate',jsonb_build_object('month',prev,'envelope_id',env,'amount','100.00'),gen_random_uuid());
- perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','account_id',acct,'category_id',cat,'envelope_id',env,'amount','150.00','date',prev),gen_random_uuid());
- if not exists(select 1 from jsonb_array_elements(public.moneyspace_snapshot(m)->'envelopes') e where e->>'id'=env::text and (e->>'carried')::numeric=-50) then raise exception 'FAIL: negative rollover lost';end if;
- env:=(public.moneyspace_write('create_envelope',jsonb_build_object('name','None','rollover','none'),gen_random_uuid())->>'id')::uuid;
- perform public.moneyspace_write('allocate',jsonb_build_object('month',prev,'envelope_id',env,'amount','100.00'),gen_random_uuid());
- if not exists(select 1 from jsonb_array_elements(public.moneyspace_snapshot(m)->'envelopes') e where e->>'id'=env::text and (e->>'carried')::numeric=0) then raise exception 'FAIL: none rollover carried';end if;
+ -- Both linked categories spend from one target, and real overspending is accepted.
+ perform public.moneyspace_write('allocate',jsonb_build_object('month',m,'envelope_id',env,'amount','6000.00'),gen_random_uuid());
+ tx:=(public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','category_id',cat2,'amount','10000.00','date',m),gen_random_uuid())->>'id')::uuid;
+ s:=public.moneyspace_snapshot(m);
+ if (s->>'cash')::numeric<>-899.90 or (s->'envelopes'->0->>'remaining')::numeric<>-4700.05 then raise exception 'FAIL: overspending blocked or category not counted';end if;
+ select updated_at into v from public.transactions where id=tx;
+ perform public.moneyspace_write('delete_transaction',jsonb_build_object('id',tx,'version',v),gen_random_uuid());
+ -- A malicious category ID makes target + mapping changes roll back together.
+ begin perform public.moneyspace_write('allocate',jsonb_build_object('month',m,'envelope_id',env,'amount','1','category_ids',jsonb_build_array(gen_random_uuid())),gen_random_uuid());raise exception 'FAIL: foreign category accepted';exception when insufficient_privilege then null;end;
+ if (public.moneyspace_snapshot(m)->'envelopes'->0->>'allocated')::numeric<>6000 then raise exception 'FAIL: partial budget mutation';end if;
+ if (public.moneyspace_snapshot(m)->>'savings_change')::numeric<>0 then raise exception 'FAIL: released earmark still counted as monthly increase';end if;
 end $$;
 -- Simulate a calendar boundary before the new period has been materialized.
 reset role;
 delete from public.budget_allocations where owner_id=(select id from m3_users where label='alice') and budget_period_id in(select id from public.budget_periods where owner_id=(select id from m3_users where label='alice') and month_start=date_trunc('month',timezone('Asia/Bangkok',now()))::date);
 delete from public.budget_periods where owner_id=(select id from m3_users where label='alice') and month_start=date_trunc('month',timezone('Asia/Bangkok',now()))::date;
 set local role authenticated;
-do $$declare m date:=date_trunc('month',timezone('Asia/Bangkok',now()))::date;g uuid;a uuid;begin
+do $$declare m date:=date_trunc('month',timezone('Asia/Bangkok',now()))::date;begin
  if (public.moneyspace_snapshot(m)->>'current_period_exists')::boolean then raise exception 'FAIL: missing period not reported';end if;
- select id into g from public.goals where name='Emergency';select id into a from public.accounts where name='Bank';
- begin perform public.moneyspace_write('earmark_goal',jsonb_build_object('goal_id',g,'account_id',a,'amount','6000.00'),gen_random_uuid());raise exception 'FAIL: earmark ignored pending rollover';exception when raise_exception then if sqlerrm<>'INSUFFICIENT_UNALLOCATED' then raise;end if;end;
  perform public.moneyspace_write('open_month',jsonb_build_object('month',m),gen_random_uuid());
  if not (public.moneyspace_snapshot(m)->>'current_period_exists')::boolean then raise exception 'FAIL: month initialization';end if;
+ if (public.moneyspace_snapshot(m)->'envelopes'->0->>'allocated')::numeric<>6000 or (public.moneyspace_snapshot(m)->'envelopes'->0->>'carried')::numeric<>0 then raise exception 'FAIL: recurring target not reset';end if;
+ -- Reopening is idempotent and preserves current spending.
+ perform public.moneyspace_write('open_month',jsonb_build_object('month',m),gen_random_uuid());
+ if (public.moneyspace_snapshot(m)->'envelopes'->0->>'remaining')::numeric<>5299.95 then raise exception 'FAIL: reopening changed spending';end if;
 end $$;
 select set_config('request.jwt.claim.sub',(select id::text from m3_users where label='bob'),true);
 do $$declare a uuid;begin
@@ -91,5 +95,5 @@ do $$declare a uuid;begin
  begin perform public.moneyspace_write('delete_transaction',jsonb_build_object('id',gen_random_uuid(),'version',now()),gen_random_uuid());raise exception 'FAIL: cross-tenant write';exception when insufficient_privilege then null;end;
 end $$;
 reset role;
-select 'PASS: exact balances, allocations, three rollover modes, historical recomputation, transfer neutrality, capped refunds, savings earmarks, retry idempotency, atomic rollback, edit/delete, stale versions, audit privacy and ownership' as financial_result;
+select 'PASS: exact balances, recurring monthly targets, no carry, multi-category budgets, truthful overspending, target independence, capped refunds, savings earmarks, retry idempotency, atomic rollback, edit/delete, stale versions, audit privacy and ownership' as financial_result;
 rollback;

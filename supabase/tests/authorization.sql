@@ -68,7 +68,7 @@ end $$;
 select set_config('request.jwt.claim.sub',(select id::text from ms_test_ids where key='dave'),true);
 do $$begin
  begin
- perform public.complete_onboarding('Dave','',100.25);
+ perform public.complete_onboarding('','เงินรวม',100.25);
  raise exception 'FAIL: invalid onboarding accepted';
  exception when check_violation then null; end;
  if exists(select 1 from public.profiles) or exists(select 1 from public.accounts) then raise exception 'FAIL: onboarding not atomic'; end if;

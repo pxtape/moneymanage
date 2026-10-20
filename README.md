@@ -1,6 +1,6 @@
 # MONEYSPACE
 
-Thai-first personal and family finance app. **M3 review build**, with real private accounts, budgets and transactions. React, TypeScript, Vite, Tailwind, shadcn-style Button/CVA, Radix Dialog, Recharts, Supabase Auth/Postgres, Vitest and Playwright. No paid AI APIs.
+Thai-first personal and family finance app. **M3 review build**, with a private overall money log, recurring monthly budget targets and transactions. React, TypeScript, Vite, Tailwind, shadcn-style Button/CVA, Radix Dialog, Recharts, Supabase Auth/Postgres, Vitest and Playwright. No paid AI APIs.
 
 Live: https://pxtape.github.io/moneymanage/
 
@@ -17,11 +17,11 @@ npm run dev
 
 ## Current experience
 
-**Quick entry:** enter amount → tap category → save. “อาหาร” becomes the transaction title automatically. No required merchant, item name or note. Add a reusable custom category once. Optional details reveal merchant/title, date, needs/wants and notes. Last selected category/account stays selected for the session.
+**Quick entry:** enter amount → tap category → save. “อาหาร” becomes the transaction title automatically. No required merchant, item name or note. Add a reusable custom category once. Optional details reveal merchant/title, date, needs/wants and notes. Last selected category stays selected for the session. Real entry has no bank account selector.
 
 **Demo space:** synthetic October 2026 dashboard, five-action mobile nav, themes, wallets/envelopes/goals, search, filters and demo CSV. Demo expense entry and custom categories are in memory only, reset on refresh, and never claim sync. Chart, comparisons, envelope/goal cards are illustrative snapshots; monthly totals are not the sum of the recent-transaction subset. Amounts entered in demo use integer satang. Allocation and transfer are not consumption; refunds reduce consumption. Calendar-day averages use elapsed calendar days. Safe-to-spend is a remaining monthly budget estimate, not a cash guarantee.
 
-**Account space (M3):** pre-provisioned username/password login for `tape` and `pat`, sign-out, password change, atomic/idempotent onboarding, personal profile/account opening amount, six starter categories and persistent custom categories. It uses authenticated Supabase rows and never displays demo finances as real. Real expenses, income, transfers, linked refunds, envelope allocations/rollover, goal earmarks and transaction edit/delete/history are connected. See [M3 review](docs/M3-REVIEW.md) for exact definitions, tests and boundaries.
+**Account space (M3):** pre-provisioned username/password login for `tape` and `pat`, sign-out, password change, atomic/idempotent onboarding, personal profile/overall opening amount, six starter categories and persistent custom categories. It uses authenticated Supabase rows and never displays demo finances as real. Real expenses, income, linked refunds, recurring monthly targets with multiple category mappings, goal earmarks and transaction edit/delete/history are connected. See [M3 review](docs/M3-REVIEW.md) for exact definitions, tests and boundaries.
 
 ## Supabase setup
 
@@ -60,17 +60,17 @@ Build has a large bundle warning (chart + Supabase dependencies); bundle optimiz
 1. On mobile, add ฿80 by selecting อาหาร, without typing a title. Verify demo cash falls by ฿80.
 2. Create สัตว์เลี้ยง once and reuse it; expand optional details only if needed.
 3. Validate missing category, zero, negative and fractional satang; close dialog with Escape and check focus.
-4. Sign in as `tape` or `pat` with the separately delivered initial password. Onboard with ฿1,000.25; refresh and check one account and six starter categories.
+4. Sign in as `tape` or `pat` with the separately delivered initial password. Onboard with ฿1,000.25; refresh and check the overall money total and six starter categories.
 5. Add a real category and refresh; ensure it remains. Verify no demo transaction is imported into the real account.
 6. Change your initial password, sign out, and sign in with the new one. Another user must not see the first user's private data. Disconnect network during a real category save; no success should be shown.
 
-Full checklist: [docs/M2-REVIEW.md](docs/M2-REVIEW.md).
+Full checklist: [docs/M3-REVIEW.md](docs/M3-REVIEW.md).
 
 ## Milestones
 
 - M1: design system, responsive navigation and demo data — delivered.
 - M2: dedicated Supabase schema, Auth, RLS, onboarding, reusable categories — delivered.
-- M3: real accounts, budgets, transactions, rollover and balances — current review.
+- M3: overall money log, recurring monthly budget targets, transactions and savings — revised M3 review.
 - M4: derived analytics and deterministic coaching.
 - M5: household mutations/roles/invites, atomic splits and settlements.
 - M6: installable PWA/offline fallback, CSV import/backups, full audit history UX, broader tests and final docs.

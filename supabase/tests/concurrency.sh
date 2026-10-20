@@ -15,17 +15,27 @@ psql -v ON_ERROR_STOP=1 -c "$race_sql" >/tmp/moneyspace-race-2.log 2>&1 & race_p
 wait "$race_pid_one"; exit_one=$?
 wait "$race_pid_two"; exit_two=$?
 set -e
-if { [ "$exit_one" -eq 0 ] && [ "$exit_two" -eq 0 ]; } || { [ "$exit_one" -ne 0 ] && [ "$exit_two" -ne 0 ]; }; then
+if [ "$exit_one" -ne 0 ] || [ "$exit_two" -ne 0 ]; then
   cat /tmp/moneyspace-race-1.log /tmp/moneyspace-race-2.log
   exit 1
 fi
-case "$(cat /tmp/moneyspace-race-1.log /tmp/moneyspace-race-2.log)" in
-  *ACCOUNT_FUNDS_RESERVED_OR_INSUFFICIENT*) ;;
-  *) echo 'Expected insufficient-funds rejection missing'; exit 1 ;;
-esac
 actual_result=$(psql -Atc "select moneyspace_private.balance('$test_owner','$test_account')::text,(select count(*) from public.transactions where owner_id='$test_owner')")
-if [ "$actual_result" != '20.00|1' ]; then
+if [ "$actual_result" != '-60.00|2' ]; then
   echo "Unexpected concurrent balance/result: $actual_result" >&2
   exit 1
 fi
-echo 'PASS: concurrent 80 + 80 against 100 commits once; balance 20.00'
+echo 'PASS: concurrent independent expenses both commit exactly; balance -60.00'
+
+# Simultaneous retry of one identical request must create a single additional row.
+race_key=$(psql -Atc 'select gen_random_uuid()')
+race_sql="begin; set local role authenticated; select set_config('request.jwt.claim.sub','$test_owner',true); select public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','category_id','$test_category','amount','10.00','date',timezone('Asia/Bangkok',now())::date),'$race_key'); commit;"
+psql -v ON_ERROR_STOP=1 -c "$race_sql" >/tmp/moneyspace-retry-1.log 2>&1 & race_pid_one=$!
+psql -v ON_ERROR_STOP=1 -c "$race_sql" >/tmp/moneyspace-retry-2.log 2>&1 & race_pid_two=$!
+wait "$race_pid_one"
+wait "$race_pid_two"
+actual_result=$(psql -Atc "select moneyspace_private.balance('$test_owner','$test_account')::text,(select count(*) from public.transactions where owner_id='$test_owner')")
+if [ "$actual_result" != '-70.00|3' ]; then
+  echo "Unexpected concurrent retry result: $actual_result" >&2
+  exit 1
+fi
+echo 'PASS: concurrent identical requests commit once'
