@@ -1,6 +1,6 @@
 # Beginning-of-month cashflow planning
 
-Both Home and Monthly Budgets now lead with the same monthly blueprint:
+Monthly Budgets leads with this blueprint; Home shows it at the bottom after actual money, budget progress, recent entries and savings (see [screen flow review](SCREEN-FLOW-REVIEW.md)):
 
 **Expected income − planned expense pockets − intended monthly saving = planned reserve.**
 
