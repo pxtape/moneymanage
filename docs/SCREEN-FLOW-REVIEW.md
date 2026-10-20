@@ -1,3 +1,5 @@
+> The later [daily overview revision](DAILY-OVERVIEW.md) supersedes the four-card overview and monthly net statistic described below. The plan remains last on Home.
+
 # Screen order and category defaults review
 
 ## Why the roles are separated

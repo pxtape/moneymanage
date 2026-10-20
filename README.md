@@ -90,3 +90,5 @@ Monthly cashflow planning replaces the retired payday option. Home and Budgets n
 Screen roles and hierarchy: Home leads with actual money and daily budget use, with the monthly plan last; Monthly Budgets leads with planning. Category defaults support Need/Want edits for future entries without rewriting history. See [screen flow review and acceptance](docs/SCREEN-FLOW-REVIEW.md).
 
 Accepted-scope closeout and final interaction polish: [closeout notes](docs/CLOSEOUT.md). Finite animations respect reduced motion; financial rules and reviewed screen order stay unchanged.
+
+The revised daily overview emphasizes current cash after earmarks, separates selected-month activity, and uses responsive priority-ordered budget cards. See [daily overview review](docs/DAILY-OVERVIEW.md).

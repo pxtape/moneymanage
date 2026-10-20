@@ -1,0 +1,7 @@
+import {ArrowDownLeft,ArrowUpRight,Wallet} from 'lucide-react';
+import {baht} from '../finance';
+import {decimalSatang,totals,type LedgerSnapshot} from '../ledger';
+export function HomeMoneySummary({snapshot,monthLabel}:{snapshot:LedgerSnapshot;monthLabel:string}){
+ const money=totals(snapshot);
+ return <section className="live-overview home-money-summary" aria-label="สถานะเงินจริง"><div className="spendable-hero"><div className="spendable-heading"><span><Wallet size={18}/>เงินหลังแยกออม</span><small>ยอดปัจจุบัน</small></div><strong className={`spendable-value ${money.spendable<0?'is-negative':''}`} data-testid="actual-spendable">{baht(money.spendable)}</strong><p className="spendable-context">จากเงินที่บันทึกไว้ · ยังไม่หักบิลหรือค่าใช้จ่ายที่ยังไม่ได้จด</p><div className="current-money-parts"><span>เงินรวม<strong data-testid="actual-cash">{baht(money.cash)}</strong></span><span>แยกออมไว้<strong>{baht(money.savings)}</strong></span></div></div><div className="actual-month-summary"><div className="actual-month-heading"><h2>{monthLabel}</h2><span>รายการเดือนที่เลือก</span></div><div className="actual-month-values"><div><span><ArrowDownLeft size={16}/>รับแล้ว</span><strong data-testid="actual-income">{baht(decimalSatang(snapshot.income))}</strong></div><div><span><ArrowUpRight size={16}/>จ่ายสุทธิ</span><strong data-testid="actual-expenses">{baht(decimalSatang(snapshot.expenses))}</strong></div></div><p>{snapshot.transaction_count} รายการที่จดในเดือนนี้ · รายจ่ายหักเงินคืนแล้ว</p></div></section>;
+}
