@@ -1,0 +1,19 @@
+import {test,expect} from '@playwright/test';
+const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const month=today.slice(0,7)+'-01';
+test('real analytics loads all aggregates, explains averages, retries errors and fits mobile',async({page})=>{
+ const id='00000000-0000-4000-8000-000000000456';
+ const jwt=[btoa(JSON.stringify({alg:'HS256',typ:'JWT'})),btoa(JSON.stringify({sub:id,exp:Math.floor(Date.now()/1000)+3600,aud:'authenticated',role:'authenticated'})),'mock'].join('.');
+ await page.addInitScript(({id,jwt})=>localStorage.setItem('sb-mfdttuvsvplbrfmjxxqs-auth-token',JSON.stringify({access_token:jwt,refresh_token:'mock',token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:{id,aud:'authenticated',role:'authenticated',email:'tape@moneyspace.invalid',app_metadata:{},user_metadata:{},created_at:new Date().toISOString()}})),{id,jwt});
+ const snapshot={month,current_period_exists:true,period_exists:true,accounts:[{id:'account',name:'เงินรวม',kind:'bank',balance:'1750',opening_balance:'1000'}],categories:[{id:'food',name:'อาหาร',icon:'🍜',tag:'need',envelope:'env'}],envelopes:[{id:'env',name:'อาหารและเครื่องดื่ม',rollover:'none',allocated:'200',carried:'0',spent:'250',remaining:'-50'}],goals:[{id:'goal',name:'เงินฉุกเฉิน',target:'10000',saved:'100'}],contributions:[],income:'1000',expenses:'250',cash:'1750',savings:'100',savings_change:'100',transactions:[],transaction_count:3};
+ const analytics={month,today,facts:[{date:month,category_id:'food',category_name:'อาหาร',tag:'need',kind:'expense',amount:'300',count:3},{date:month,category_id:'food',category_name:'อาหาร',tag:'need',kind:'refund',amount:'50',count:1},{date:month,category_id:null,category_name:'ไม่ระบุหมวด',tag:null,kind:'income',amount:'1000',count:1}],savings:[{month,amount:'100'}]};
+ await page.route('**/rest/v1/profiles*',route=>route.fulfill({json:{display_name:'tape',onboarding_completed_at:today+'T00:00:00Z'}}));
+ await page.route('**/rest/v1/rpc/moneyspace_snapshot',route=>route.fulfill({json:snapshot}));
+ let reject=true;
+ await page.route('**/rest/v1/rpc/moneyspace_analytics',route=>{expect(route.request().postDataJSON().p_month).toBe(month);return reject?route.fulfill({status:503,json:{message:'offline'}}):route.fulfill({json:analytics})});
+ await page.goto('/');await expect(page.getByTestId('actual-cash')).toContainText('1,750');await page.getByRole('button',{name:'ข้อมูลเชิงลึก',exact:true}).click();await expect(page.getByRole('alert')).toContainText('โหลดข้อมูลเชิงลึกไม่ได้');reject=false;await page.getByRole('button',{name:'ลองโหลดข้อมูลเชิงลึกใหม่'}).click();
+ await expect(page.getByRole('heading',{name:'รายจ่ายรายวัน',exact:true})).toBeVisible();await expect(page.getByTestId('calendar-average')).toContainText(new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Math.trunc(25000/Number(today.slice(8)))/100));await expect(page.getByText('เฉพาะวันที่มีรายจ่าย:',{exact:false})).toContainText('250.00');await expect(page.getByText('75.0%',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'บางงบใช้เกินที่ตั้งไว้แล้ว'})).toBeVisible();await expect(page.getByRole('heading',{name:'แนวโน้ม 6 เดือน'})).toBeVisible();
+ await page.getByText('วิธีคำนวณและขอบเขตข้อมูล',{exact:true}).click();await expect(page.getByText('ไม่จำกัด 100 รายการ',{exact:false})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await expect(page.locator('.category-donut .recharts-sector')).toBeVisible();await page.screenshot({path:`artifacts/${test.info().project.name}-m4-insights.png`,fullPage:true});
+ await page.getByRole('button',{name:'จัดการงบ',exact:true}).click();await expect(page.getByRole('heading',{name:'งบประจำเดือน',exact:true})).toBeVisible();
+});

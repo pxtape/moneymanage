@@ -1,0 +1,37 @@
+import { decimalSatang, type LedgerSnapshot } from './ledger';
+import { baht } from './finance';
+export interface AnalyticsFact {date:string;category_id:string|null;category_name:string;tag:'need'|'want'|null;kind:'income'|'expense'|'refund';amount:string;count:number}
+export interface AnalyticsData {month:string;today:string;facts:AnalyticsFact[];savings:{month:string;amount:string}[]}
+const sum=(values:number[])=>values.reduce((s,n)=>{const result=s+n;if(!Number.isSafeInteger(result))throw new Error('ยอดรวมเกินช่วงที่แสดงผลได้อย่างแม่นยำ');return result},0);
+export function shiftMonth(month:string,offset:number){const d=new Date(month+'T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+offset);return d.toISOString().slice(0,7)+'-01'}
+export const monthDays=(month:string)=>new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).getUTCDate();
+const belongs=(f:AnalyticsFact,month:string)=>f.date.slice(0,7)===month.slice(0,7);
+const net=(facts:AnalyticsFact[])=>sum(facts.filter(f=>f.kind!=='income').map(f=>decimalSatang(f.amount)*(f.kind==='refund'?-1:1)));
+const average=(value:number,days:number)=>days?Math.trunc(value/days):null;
+export function analyze(data:AnalyticsData,snapshot:LedgerSnapshot){
+ const {month,today}=data;const current=month.slice(0,7)===today.slice(0,7);const days=monthDays(month);const elapsed=current?Number(today.slice(8)):days;
+ const selected=data.facts.filter(f=>belongs(f,month)&&Number(f.date.slice(8))<=elapsed);
+ const spending=selected.filter(f=>f.kind==='expense');const spendingDays=new Set(spending.map(f=>f.date)).size;const count=sum(spending.map(f=>f.count));
+ const expenses=net(selected);const gross=sum(spending.map(f=>decimalSatang(f.amount)));const income=sum(selected.filter(f=>f.kind==='income').map(f=>decimalSatang(f.amount)));
+ const food=selected.filter(f=>/อาหาร|เครื่องดื่ม|กาแฟ|food|drink|coffee/i.test(f.category_name));const foodDays=new Set(food.filter(f=>f.kind==='expense').map(f=>f.date)).size;
+ const previous=shiftMonth(month,-1);const previousDays=Math.min(elapsed,monthDays(previous));const previousFacts=data.facts.filter(f=>belongs(f,previous)&&Number(f.date.slice(8))<=previousDays);
+ const dailyAverage=average(expenses,elapsed)!;const previousAverage=average(net(previousFacts),previousDays)!;
+ const daily=Array.from({length:elapsed},(_,i)=>{const date=month.slice(0,7)+'-'+String(i+1).padStart(2,'0');const facts=selected.filter(f=>f.date===date);return {day:i+1,expenses:net(facts)/100,count:sum(facts.filter(f=>f.kind==='expense').map(f=>f.count))}});
+ const weekdays=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'].map((name,index)=>{const dates=daily.filter(d=>new Date(`${month.slice(0,7)}-${String(d.day).padStart(2,'0')}T12:00:00Z`).getUTCDay()===index);return {name,days:dates.length,average:dates.length?dates.reduce((s,d)=>s+d.expenses,0)/dates.length:0,count:dates.reduce((s,d)=>s+d.count,0)}});
+ const categories=[...new Set(selected.filter(f=>f.kind!=='income').map(f=>f.category_id))].map(id=>{const rows=selected.filter(f=>f.category_id===id);return {id,name:rows[0].category_name,gross:sum(rows.filter(f=>f.kind==='expense').map(f=>decimalSatang(f.amount))),net:net(rows),count:sum(rows.filter(f=>f.kind==='expense').map(f=>f.count))}}).sort((a,b)=>b.gross-a.gross);
+ const trends=Array.from({length:6},(_,i)=>{const m=shiftMonth(month,i-5);const rows=data.facts.filter(f=>belongs(f,m));const n=m===month?elapsed:monthDays(m);const expense=net(rows);const earned=sum(rows.filter(f=>f.kind==='income').map(f=>decimalSatang(f.amount)));return {month:m,label:new Date(m+'T12:00:00Z').toLocaleDateString('th-TH',{month:'short',timeZone:'Asia/Bangkok'}),expenses:expense/100,income:earned/100,daily:expense/n/100,savings:decimalSatang(data.savings.find(s=>s.month===m)?.amount||'0')/100,partial:m===month&&current,hasData:rows.length>0}});
+ const tags=(['need','want',null] as const).map(tag=>({tag,name:tag==='need'?'จำเป็น':tag==='want'?'ความสุข':'ไม่ระบุ',net:net(selected.filter(f=>f.tag===tag))}));
+ const burn=snapshot.envelopes.map(e=>{const target=decimalSatang(e.allocated);const spent=decimalSatang(e.spent);const projected=Math.round(Math.max(0,spent)/elapsed*days);return {id:e.id,name:e.name,target,spent,remaining:decimalSatang(e.remaining),ratio:target>0?spent/target:null,projected,excess:Math.max(0,projected-target)}});
+ const savingsRate=income>0?(income-expenses)/income*100:null;const savingsChange=decimalSatang(data.savings.find(s=>s.month===month)?.amount||'0');
+ const insights:{id:string;tone:'gentle'|'warning';title:string;body:string}[]=[];
+ if(!count)insights.push({id:'start',tone:'gentle',title:'เริ่มจากรายการเล็ก ๆ',body:'จดแค่ยอดเงินกับหมวดก็พอ เมื่อมีข้อมูลแล้วเราจะช่วยมองรูปแบบการใช้จ่ายให้'});
+ if(income>0&&savingsChange<=0)insights.push({id:'first',tone:'gentle',title:'ลองกันเงินให้ตัวเองก่อน',body:'เดือนนี้มีรายรับแล้ว หากสะดวก ลองกันส่วนหนึ่งไว้ให้เป้าหมาย เงินที่กันไม่ถูกนับเป็นรายจ่าย'});
+ const over=burn.filter(b=>b.remaining<0);if(over.length)insights.push({id:'over',tone:'warning',title:'บางงบใช้เกินที่ตั้งไว้แล้ว',body:over.map(b=>`${b.name} เกิน ${baht(-b.remaining)}`).join(' · ')+' ลองทบทวนรายจ่ายหรือตั้งงบให้เหมาะกับเดือนนี้'});
+ if(current&&elapsed>=7&&count>=3){const risky=burn.filter(b=>b.remaining>=0&&b.excess>0&&b.target>0);if(risky.length)insights.push({id:'pace',tone:'warning',title:'ถ้าใช้จ่ายด้วยจังหวะเดิม อาจเกินงบ',body:risky.map(b=>`${b.name} คาดว่าจะเกิน ${baht(b.excess)}`).join(' · ')+' เป็นการประมาณจากยอดสุทธิต่อวัน ไม่ใช่ยอดที่จะเกิดแน่นอน'});}
+ const largest=categories[0];if(count>=3&&largest&&gross>0)insights.push({id:'review',tone:'gentle',title:`ลองมองหมวด${largest.name}ด้วยกัน`,body:`คิดเป็น ${(largest.gross/gross*100).toFixed(0)}% ของรายจ่ายก่อนหักคืนเงิน เดือนนี้มี ${largest.count} รายการ ลองดูว่าส่วนไหนยังตอบโจทย์คุณอยู่`});
+ const emergency=snapshot.goals.find(g=>/ฉุกเฉิน|emergency/i.test(g.name));
+ if(!emergency)insights.push({id:'emergency',tone:'gentle',title:'ค่อย ๆ สร้างเงินฉุกเฉิน',body:'ลองสร้างเป้าหมายเงินฉุกเฉิน เริ่มจากจำนวนที่ไหว แล้วค่อยขยับไปสู่ค่าใช้จ่ายจำเป็น 3–6 เดือน'});
+ else{const needs=tags[0].net;const estimate=needs>0&&(!current||(elapsed>=7&&count>=3))?Math.round(needs/elapsed*days):0;insights.push({id:'emergency',tone:'gentle',title:'เช็กเงินฉุกเฉินที่กันไว้',body:estimate>0?`ยอดปัจจุบัน ${baht(decimalSatang(emergency.saved))} ครอบคลุมประมาณ ${(decimalSatang(emergency.saved)/estimate).toFixed(1)} เดือนของรายจ่ายจำเป็นตามจังหวะเดือนที่เลือก ลองใช้ 3–6 เดือนเป็นแนวทาง`:'มีเป้าหมายเงินฉุกเฉินแล้ว รอข้อมูลรายจ่ายจำเป็นเพิ่มก่อนประมาณจำนวนเดือนที่ครอบคลุม'});}
+ const lastWeek=selected.filter(f=>Number(f.date.slice(8))>Math.max(0,elapsed-7));if(count)insights.push({id:'weekly',tone:'gentle',title:'เผื่อเวลาทบทวนสัปดาห์ละนิด',body:`${Math.min(7,elapsed)} วันท้ายของช่วงที่เลือกมีรายจ่าย ${sum(lastWeek.filter(f=>f.kind==='expense').map(f=>f.count))} รายการ สุทธิ ${baht(net(lastWeek))} ลองเช็กหมวด เงินคืน และเงินออม ใช้เวลาไม่กี่นาทีก็ได้`});
+ return {days,elapsed,current,count,spendingDays,expenses,gross,income,dailyAverage,spendingAverage:average(expenses,spendingDays),food:net(food),foodDays,foodCalendarAverage:average(net(food),elapsed),foodSpendingAverage:average(net(food),foodDays),frequency:count/elapsed,previousDays,previousAverage,comparisonPercent:previousAverage>0?(dailyAverage/previousAverage-1)*100:null,daily,weekdays,categories,trends,tags,burn,savingsRate,savingsChange,insights};
+}

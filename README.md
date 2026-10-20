@@ -1,6 +1,6 @@
 # MONEYSPACE
 
-Thai-first personal and family finance app. **M3 review build**, with a private overall money log, recurring monthly budget targets and transactions. React, TypeScript, Vite, Tailwind, shadcn-style Button/CVA, Radix Dialog, Recharts, Supabase Auth/Postgres, Vitest and Playwright. No paid AI APIs.
+Thai-first personal and family finance app. **M4 review build**, with a private overall money log, recurring monthly budget targets and transactions. React, TypeScript, Vite, Tailwind, shadcn-style Button/CVA, Radix Dialog, Recharts, Supabase Auth/Postgres, Vitest and Playwright. No paid AI APIs.
 
 Live: https://pxtape.github.io/moneymanage/
 
@@ -21,7 +21,7 @@ npm run dev
 
 **Demo space:** synthetic October 2026 dashboard, five-action mobile nav, themes, wallets/envelopes/goals, search, filters and demo CSV. Demo expense entry and custom categories are in memory only, reset on refresh, and never claim sync. Chart, comparisons, envelope/goal cards are illustrative snapshots; monthly totals are not the sum of the recent-transaction subset. Amounts entered in demo use integer satang. Allocation and transfer are not consumption; refunds reduce consumption. Calendar-day averages use elapsed calendar days. Safe-to-spend is a remaining monthly budget estimate, not a cash guarantee.
 
-**Account space (M3):** pre-provisioned username/password login for `tape` and `pat`, sign-out, password change, atomic/idempotent onboarding, personal profile/overall opening amount, six starter categories and persistent custom categories. It uses authenticated Supabase rows and never displays demo finances as real. Real expenses, income, linked refunds, recurring monthly targets with multiple category mappings, goal earmarks and transaction edit/delete/history are connected. See [M3 review](docs/M3-REVIEW.md) for exact definitions, tests and boundaries.
+**Account space (M3):** pre-provisioned username/password login for `tape` and `pat`, sign-out, password change, atomic/idempotent onboarding, personal profile/overall opening amount, six starter categories and persistent custom categories. It uses authenticated Supabase rows and never displays demo finances as real. Real expenses, income, linked refunds, recurring monthly targets with multiple category mappings, goal earmarks and transaction edit/delete/history are connected. Budgets can be renamed or soft-deleted without deleting expenses. Real daily/category/weekday/six-month analytics, normalized monthly comparisons, savings/goal views and deterministic Thai coaching are available under ข้อมูลเชิงลึก. See [M4 review](docs/M4-REVIEW.md) for definitions, checks and manual acceptance.
 
 ## Supabase setup
 
@@ -70,11 +70,11 @@ Full checklist: [docs/M3-REVIEW.md](docs/M3-REVIEW.md).
 
 - M1: design system, responsive navigation and demo data — delivered.
 - M2: dedicated Supabase schema, Auth, RLS, onboarding, reusable categories — delivered.
-- M3: overall money log, recurring monthly budget targets, transactions and savings — revised M3 review.
-- M4: derived analytics and deterministic coaching.
+- M3: overall money log, recurring monthly budget targets, transactions and savings — delivered, revised to monthly comparison targets.
+- M4: real derived analytics and deterministic coaching, plus budget rename/delete — current review.
 - M5: household mutations/roles/invites, atomic splits and settlements.
 - M6: installable PWA/offline fallback, CSV import/backups, full audit history UX, broader tests and final docs.
 
 `.github/workflows/pages.yml` runs checks and database authorization assertions on pushes to `main`, then deploys `dist/` through GitHub Pages. Both jobs must pass before deployment. No backend secrets are required by CI. Supabase configuration uses a public publishable key plus RLS.
 
-Current manual acceptance checklist and validation limits: [docs/M3-REVIEW.md](docs/M3-REVIEW.md). Existing M2 documents describe earlier stages and are superseded where M3 changes behavior.
+Current manual acceptance checklist and validation limits: [docs/M4-REVIEW.md](docs/M4-REVIEW.md). Existing M2 documents describe earlier stages and are superseded where M3 changes behavior.
