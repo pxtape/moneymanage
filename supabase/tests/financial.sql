@@ -71,6 +71,18 @@ begin
  perform public.moneyspace_write('allocate',jsonb_build_object('month',prev,'envelope_id',env,'amount','100.00'),gen_random_uuid());
  if not exists(select 1 from jsonb_array_elements(public.moneyspace_snapshot(m)->'envelopes') e where e->>'id'=env::text and (e->>'carried')::numeric=0) then raise exception 'FAIL: none rollover carried';end if;
 end $$;
+-- Simulate a calendar boundary before the new period has been materialized.
+reset role;
+delete from public.budget_allocations where owner_id=(select id from m3_users where label='alice') and budget_period_id in(select id from public.budget_periods where owner_id=(select id from m3_users where label='alice') and month_start=date_trunc('month',timezone('Asia/Bangkok',now()))::date);
+delete from public.budget_periods where owner_id=(select id from m3_users where label='alice') and month_start=date_trunc('month',timezone('Asia/Bangkok',now()))::date;
+set local role authenticated;
+do $$declare m date:=date_trunc('month',timezone('Asia/Bangkok',now()))::date;g uuid;a uuid;begin
+ if (public.moneyspace_snapshot(m)->>'current_period_exists')::boolean then raise exception 'FAIL: missing period not reported';end if;
+ select id into g from public.goals where name='Emergency';select id into a from public.accounts where name='Bank';
+ begin perform public.moneyspace_write('earmark_goal',jsonb_build_object('goal_id',g,'account_id',a,'amount','6000.00'),gen_random_uuid());raise exception 'FAIL: earmark ignored pending rollover';exception when raise_exception then if sqlerrm<>'INSUFFICIENT_UNALLOCATED' then raise;end if;end;
+ perform public.moneyspace_write('open_month',jsonb_build_object('month',m),gen_random_uuid());
+ if not (public.moneyspace_snapshot(m)->>'current_period_exists')::boolean then raise exception 'FAIL: month initialization';end if;
+end $$;
 select set_config('request.jwt.claim.sub',(select id::text from m3_users where label='bob'),true);
 do $$declare a uuid;begin
  if exists(select 1 from public.transaction_versions) then raise exception 'FAIL: history leaked';end if;

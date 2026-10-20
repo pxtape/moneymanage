@@ -6,7 +6,7 @@ The authenticated space is a real financial dashboard, isolated from demo data. 
 
 Income, expenses, transfers and linked partial refunds are live. Transactions can be edited and soft-deleted, with optimistic updated_at checks and full before/after versions in RLS-protected Supabase rows. Refunds inherit the original account/category/envelope, cannot precede the expense, and cannot exceed its remaining refundable amount. Expenses with linked refunds cannot be changed/deleted until the refund is removed. Refunds themselves are corrected by deleting/recreating them. Type changes are intentionally rejected.
 
-Envelope allocations are a separate ledger and never reduce cash or count as expenses. Allocations specify the month's total amount, not an increment. Modes: none, positive-only carry, or full carry including negative balances. Missing calendar months are filled between the earliest open month and the current month, with zero new allocations. Opening a month never copies income or charges cash. Historical edits recalculate carryovers forward. Rollover mode is chosen at envelope creation and remains fixed in M3.
+Envelope allocations are a separate ledger and never reduce cash or count as expenses. Allocations specify the month's total amount, not an increment. Modes: none, positive-only carry, or full carry including negative balances. Missing calendar months are filled between the earliest open month and the current month, with zero new allocations. Opening a month never copies income or charges cash. The app initializes the current month before presenting funds, and every financial write advances missing calendar periods before making a funding decision. Historical edits recalculate carryovers forward. Rollover mode is chosen at envelope creation and remains fixed in M3.
 
 Savings goals use earmarks against a physical account. Cash and consumption do not change. Reserved savings cannot be spent/transferred until released. A contribution can be released without creating income. Physical transfers between accounts are separate from savings earmarks.
 
@@ -41,6 +41,8 @@ Transaction history is append-only for clients. UI displays the latest 30 versio
 - Existing authorization SQL passed again on the deployed database.
 - Live concurrent SQL requests each attempted an expense of 80 against 100: exactly one committed, the other was rejected, final balance 20.00. The synthetic fixture was removed; only tape and pat remain in auth.users. Their data/passwords were not used for testing.
 - CI repeats migrations, role/RLS assertions, financial assertions, registration closure and a two-process concurrency harness on PostgreSQL 17 before deployment. The concurrency harness refuses non-stub auth.users schemas and runs only against the ephemeral CI database.
+
+The calendar-boundary regression test removes the materialized current period and verifies that a new savings earmark cannot consume funds that must first roll over. The initial CI unit/browser glob overlap was fixed with an explicit Vitest include config. Vitest was upgraded to 5.0.5 after audit identified vulnerable development-test dependencies.
 
 The new transaction-version FK index was added after the performance advisor identified it. Unused-index INFO findings are expected on lightly used tables. Supabase's known leaked-password protection setting remains disabled; see https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection . No paid feature was enabled.
 

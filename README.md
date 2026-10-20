@@ -6,7 +6,7 @@ Live: https://pxtape.github.io/moneymanage/
 
 ## Run
 
-Node 22+:
+Node 22.12+ (or Node 24+):
 
 ```sh
 npm ci
