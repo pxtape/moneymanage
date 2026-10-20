@@ -1,6 +1,6 @@
 # MONEYSPACE
 
-Thai-first personal finance app. **Personal finance build (M4 complete)**, with a private overall money log, recurring monthly budget targets and transactions. React, TypeScript, Vite, Tailwind, shadcn-style Button/CVA, Radix Dialog, Recharts, Supabase Auth/Postgres, Vitest and Playwright. No paid AI APIs.
+Thai-first personal finance app. **Personal finance build (M4 + completeness refinements)**, with a private overall money log, recurring monthly budget targets and transactions. React, TypeScript, Vite, Tailwind, shadcn-style Button/CVA, Radix Dialog, Recharts, Supabase Auth/Postgres, Vitest and Playwright. No paid AI APIs.
 
 Live: https://pxtape.github.io/moneymanage/
 
@@ -82,3 +82,5 @@ Current manual acceptance checklist and validation limits: [docs/M4-REVIEW.md](d
 ## Current scope update
 
 Family spaces, invitations, shared wallets, splits and settlements were canceled by user request. The family page/menu and demo preview are removed. Mobile navigation is now Home, Budgets, Add, Insights, Settings. The existing tape/pat logins remain separate private accounts. Original M2 database foundation tables/policies remain protected and unchanged; no M5 schema or sharing API was applied. Historical milestone documents describe earlier plans. The next remaining milestone is M6: PWA, CSV, backups and final deployment/documentation.
+
+Latest review against the five everyday-use requirements: [Completeness review](docs/COMPLETENESS-REVIEW.md). Common pockets can now be planned together without overwriting existing settings; food/drink analysis is independent; home savings and coaching actions are directly accessible. M6 and full-history search remain unfinished as documented.
