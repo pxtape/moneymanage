@@ -1,3 +1,5 @@
+> Retired at user request. The payday UI and write actions are removed; existing income history is retained. See [monthly cashflow planning](MONTHLY-CASHFLOW-PLAN.md) for the replacement. The remainder records the earlier implementation.
+
 # Optional regular salary planning
 
 Enable from Home → ตั้งรายได้ประจำ, or Settings → ตั้งรายได้ประจำ. Enter net monthly pay and a payday (1–31). The option is private to each user and disabled until configured; switching it off preserves the configuration and recorded income.

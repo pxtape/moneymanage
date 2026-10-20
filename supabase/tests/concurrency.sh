@@ -40,27 +40,27 @@ if [ "$actual_result" != '-70.00|3' ]; then
 fi
 echo 'PASS: concurrent identical requests commit once'
 
-# Different request IDs for the same salary cycle still serialize to one income.
-psql -v ON_ERROR_STOP=1 -c "begin; set local role authenticated; select set_config('request.jwt.claim.sub','$test_owner',true); select public.moneyspace_write('set_salary',jsonb_build_object('enabled',true,'amount','100','payday',1,'version',null),gen_random_uuid());commit;" >/dev/null
-salary_version=$(psql -Atc "select updated_at::text from public.salary_plans where owner_id='$test_owner'")
-race_sql="begin; set local role authenticated; select set_config('request.jwt.claim.sub','$test_owner',true); select public.moneyspace_write('receive_salary',jsonb_build_object('amount','100.00','due',date_trunc('month',timezone('Asia/Bangkok',now()))::date,'date',timezone('Asia/Bangkok',now())::date,'version','$salary_version'),gen_random_uuid());commit;"
+# Two edits based on the same monthly plan version must not overwrite each other.
+psql -v ON_ERROR_STOP=1 -c "begin; set local role authenticated; select set_config('request.jwt.claim.sub','$test_owner',true); select public.moneyspace_write('save_month_plan',jsonb_build_object('month',date_trunc('month',timezone('Asia/Bangkok',now()))::date,'amount','5000','incomes',jsonb_build_array(jsonb_build_object('name','Pay','amount','30000')),'version',null),gen_random_uuid());commit;" >/dev/null
+plan_version=$(psql -Atc "select updated_at::text from public.monthly_cashflow_plans where owner_id='$test_owner'")
+race_sql="begin; set local role authenticated; select set_config('request.jwt.claim.sub','$test_owner',true); select public.moneyspace_write('save_month_plan',jsonb_build_object('month',date_trunc('month',timezone('Asia/Bangkok',now()))::date,'amount','6000','incomes',jsonb_build_array(jsonb_build_object('name','Pay','amount','30000')),'version','$plan_version'),gen_random_uuid());commit;"
 set +e
-psql -v ON_ERROR_STOP=1 -c "$race_sql" >/tmp/moneyspace-salary-1.log 2>&1 & race_pid_one=$!
-psql -v ON_ERROR_STOP=1 -c "$race_sql" >/tmp/moneyspace-salary-2.log 2>&1 & race_pid_two=$!
+psql -v ON_ERROR_STOP=1 -c "$race_sql" >/tmp/moneyspace-plan-1.log 2>&1 & race_pid_one=$!
+psql -v ON_ERROR_STOP=1 -c "$race_sql" >/tmp/moneyspace-plan-2.log 2>&1 & race_pid_two=$!
 wait "$race_pid_one"; exit_one=$?
 wait "$race_pid_two"; exit_two=$?
 set -e
 if ! { [ "$exit_one" -eq 0 ] && [ "$exit_two" -ne 0 ]; } && ! { [ "$exit_two" -eq 0 ] && [ "$exit_one" -ne 0 ]; }; then
-  cat /tmp/moneyspace-salary-1.log /tmp/moneyspace-salary-2.log
+  cat /tmp/moneyspace-plan-1.log /tmp/moneyspace-plan-2.log
   exit 1
 fi
-if ! grep -q 'SALARY_ALREADY_RECEIVED' /tmp/moneyspace-salary-1.log /tmp/moneyspace-salary-2.log; then
-  cat /tmp/moneyspace-salary-1.log /tmp/moneyspace-salary-2.log
+if ! grep -q 'STALE_VERSION' /tmp/moneyspace-plan-1.log /tmp/moneyspace-plan-2.log; then
+  cat /tmp/moneyspace-plan-1.log /tmp/moneyspace-plan-2.log
   exit 1
 fi
-actual_result=$(psql -Atc "select moneyspace_private.balance('$test_owner','$test_account')::text,(select count(*) from public.salary_payments where owner_id='$test_owner'),(select count(*) from public.transactions where owner_id='$test_owner' and kind='income')")
-if [ "$actual_result" != '30.00|1|1' ]; then
-  echo "Unexpected concurrent salary result: $actual_result" >&2
+actual_result=$(psql -Atc "select moneyspace_private.balance('$test_owner','$test_account')::text,(select savings_target from public.monthly_cashflow_plans where owner_id='$test_owner'),(select count(*) from public.transactions where owner_id='$test_owner')")
+if [ "$actual_result" != '-70.00|6000.00|3' ]; then
+  echo "Unexpected concurrent planning result: $actual_result" >&2
   exit 1
 fi
-echo 'PASS: concurrent salary confirmations with different keys create one income'
+echo 'PASS: simultaneous monthly plan edits reject stale overwrite without changing money'
