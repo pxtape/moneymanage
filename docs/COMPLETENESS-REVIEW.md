@@ -1,3 +1,5 @@
+> Superseded interface details: the simple-plan button was removed at user request. See [visual budgets and goals](VISUAL-BUDGETS-AND-GOALS.md) for current behavior.
+
 # Personal finance completeness review
 
 Scope follows the latest five user requirements. Family spaces were canceled; no M5 migration or sharing API was deployed. This release refines the personal M4 experience and does not claim completion of M6.

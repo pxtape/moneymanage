@@ -45,6 +45,7 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/analytics.sql
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/categories-history.sql
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/simple-plan.sql
+      - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/goals-management.sql
       - run: bash supabase/tests/concurrency.sh
   build:
     runs-on: ubuntu-latest
