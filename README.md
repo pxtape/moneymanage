@@ -21,14 +21,14 @@ npm run dev
 
 **Demo space:** synthetic October 2026 dashboard, five-action mobile nav, themes, wallets/envelopes/goals, search, filters and demo CSV. Demo expense entry and custom categories are in memory only, reset on refresh, and never claim sync. Chart, comparisons, envelope/goal cards are illustrative snapshots; monthly totals are not the sum of the recent-transaction subset. Amounts entered in demo use integer satang. Allocation and transfer are not consumption; refunds reduce consumption. Calendar-day averages use elapsed calendar days. Safe-to-spend is a remaining monthly budget estimate, not a cash guarantee.
 
-**Account space:** email/password auth, confirmation state, sign-out, atomic/idempotent onboarding, personal profile/account opening amount, six starter categories and persistent custom categories. It uses authenticated Supabase rows and never displays demo finances as real. Actual financial recording, budgets, rollover and derived account balances are intentionally disabled until M3.
+**Account space:** pre-provisioned username/password login for `tape` and `pat`, sign-out, password change, atomic/idempotent onboarding, personal profile/account opening amount, six starter categories and persistent custom categories. It uses authenticated Supabase rows and never displays demo finances as real. Actual financial recording, budgets, rollover and derived account balances are intentionally disabled until M3.
 
 ## Supabase setup
 
 Dedicated MONEYSPACE project: `mfdttuvsvplbrfmjxxqs`, Singapore, pxtape's Org; quoted $0/month at creation. The existing learning project was not modified.
 
-1. In Auth → URL Configuration, set Site URL and allowed redirect to `https://pxtape.github.io/moneymanage/`. Add the local development URL when required.
-2. Keep email confirmation enabled. Signup emails are subject to Supabase's delivery restrictions and limits. Live email delivery remains a manual acceptance check.
+1. The two accounts are created with Admin createUser and email_confirm=true. Usernames map to reserved internal `.invalid` email aliases; no email is sent by login, setup or password change. No signup page exists.
+2. New Auth user inserts are blocked at the database boundary for the Auth server role. This closes signup even if someone calls the public endpoint directly. The Dashboard signup flag is not claimed as changed; disabling that flag is optional defense in depth. See `docs/USERNAME-LOGIN.md`.
 3. Browser config is intentionally public in `src/public-config.ts`. To use another project copy `.env.example` to `.env.local`, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, and apply migrations there.
 4. Never expose service_role, `sb_secret`, database passwords or access tokens in Vite/GitHub Pages. All deployed frontend files are public. RLS enforces data access.
 5. Apply `supabase/migrations/*.sql` once in lexical order to a dedicated empty project. Current migrations have already been applied to MONEYSPACE; do not reapply them there. `supabase/schema.sql` is a reference snapshot, not an extra migration.
@@ -53,16 +53,16 @@ In this cloud workspace Chromium is installed at `/workspace/.playwright`; run `
 - Authorization: run `supabase/tests/authorization.sql` as postgres. Synthetic fixtures roll back; passed on actual Supabase Postgres 17. Tests assert private/shared/outsider/revoked access, escalation/ownership denial, atomic/idempotent onboarding, numeric precision, anonymous denial and category ownership/constraints. No synthetic Auth users remain.
 - GitHub Actions also runs the policy assertions on PostgreSQL 17 using a minimal Auth-role stub. Never apply `supabase/tests/bootstrap.sql` to real Supabase.
 
-Build has a large bundle warning (chart + Supabase dependencies); bundle optimization remains a limitation. Screenshots are under `artifacts/`. Live email signup/delivery is not claimed as automatically tested.
+Build has a large bundle warning (chart + Supabase dependencies); bundle optimization remains a limitation. Screenshots are under `artifacts/`. Both real username/password accounts and password updates were verified against the live Auth API, then test sessions were signed out. No email delivery is required.
 
 ## Manual acceptance
 
 1. On mobile, add ฿80 by selecting อาหาร, without typing a title. Verify demo cash falls by ฿80.
 2. Create สัตว์เลี้ยง once and reuse it; expand optional details only if needed.
 3. Validate missing category, zero, negative and fractional satang; close dialog with Escape and check focus.
-4. Configure Auth URL, sign up, confirm email and sign in. Onboard with ฿1,000.25; refresh and check one account and six starter categories.
+4. Sign in as `tape` or `pat` with the separately delivered initial password. Onboard with ฿1,000.25; refresh and check one account and six starter categories.
 5. Add a real category and refresh; ensure it remains. Verify no demo transaction is imported into the real account.
-6. Sign out; another user must not see the first user's private data. Disconnect network during a real category save; no success should be shown.
+6. Change your initial password, sign out, and sign in with the new one. Another user must not see the first user's private data. Disconnect network during a real category save; no success should be shown.
 
 Full checklist: [docs/M2-REVIEW.md](docs/M2-REVIEW.md).
 

@@ -1,3 +1,5 @@
+> Update: signup/email-confirmation UX below is superseded by `USERNAME-LOGIN.md`. The deployed app now has two pre-provisioned username accounts and no signup page.
+
 # M2 review
 
 ## New interaction

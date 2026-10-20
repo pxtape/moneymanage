@@ -9,3 +9,8 @@ create function auth.uid() returns uuid language sql stable as $$
 $$;
 grant usage on schema public,auth to anon,authenticated;
 grant execute on function auth.uid() to anon,authenticated;
+
+-- Model the Auth server role for the closed-registration trigger assertion.
+create role supabase_auth_admin nologin;
+grant usage on schema auth to supabase_auth_admin;
+grant insert on auth.users to supabase_auth_admin;
