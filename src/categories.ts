@@ -1,4 +1,4 @@
-export interface Category { id: string; name: string; icon: string; envelope: string | null; tag: 'need'|'want' }
+export interface Category { id: string; name: string; icon: string; envelope: string | null; tag: 'need'|'want'; updated_at?:string; foodDrink?:boolean }
 export const defaultCategories: Category[] = [
   { id:'food',name:'อาหาร',icon:'🍜',envelope:'อาหารและเครื่องดื่ม',tag:'need' },
   { id:'drink',name:'เครื่องดื่ม',icon:'☕',envelope:'อาหารและเครื่องดื่ม',tag:'want' },
@@ -14,3 +14,5 @@ export function validateCategoryName(name: string, categories: Category[]): stri
   return null;
 }
 export const bangkokToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+
+export function validateCategoryIcon(value:string):string|null {const icon=value.trim();const parts=[...new Intl.Segmenter('th',{granularity:'grapheme'}).segment(icon)];return parts.length===1&&[...icon].length<=12&&/[\p{Extended_Pictographic}\p{Regional_Indicator}\u20e3]/u.test(icon)?null:'เลือก emoji หนึ่งตัวสำหรับหมวด';}

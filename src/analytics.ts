@@ -1,6 +1,6 @@
 import { decimalSatang, type LedgerSnapshot } from './ledger';
 import { baht } from './finance';
-export interface AnalyticsFact {date:string;category_id:string|null;category_name:string;tag:'need'|'want'|null;kind:'income'|'expense'|'refund';amount:string;count:number}
+export interface AnalyticsFact {date:string;category_id:string|null;category_name:string;category_icon?:string|null;food_drink?:boolean;tag:'need'|'want'|null;kind:'income'|'expense'|'refund';amount:string;count:number}
 export interface AnalyticsData {month:string;today:string;facts:AnalyticsFact[];savings:{month:string;amount:string}[]}
 const sum=(values:number[])=>values.reduce((s,n)=>{const result=s+n;if(!Number.isSafeInteger(result))throw new Error('ยอดรวมเกินช่วงที่แสดงผลได้อย่างแม่นยำ');return result},0);
 export function shiftMonth(month:string,offset:number){const d=new Date(month+'T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+offset);return d.toISOString().slice(0,7)+'-01'}
@@ -13,12 +13,13 @@ export function analyze(data:AnalyticsData,snapshot:LedgerSnapshot){
  const selected=data.facts.filter(f=>belongs(f,month)&&Number(f.date.slice(8))<=elapsed);
  const spending=selected.filter(f=>f.kind==='expense');const spendingDays=new Set(spending.map(f=>f.date)).size;const count=sum(spending.map(f=>f.count));
  const expenses=net(selected);const gross=sum(spending.map(f=>decimalSatang(f.amount)));const income=sum(selected.filter(f=>f.kind==='income').map(f=>decimalSatang(f.amount)));
- const food=selected.filter(f=>/อาหาร|เครื่องดื่ม|กาแฟ|food|drink|coffee/i.test(f.category_name));const foodDays=new Set(food.filter(f=>f.kind==='expense').map(f=>f.date)).size;
+ const food=selected.filter(f=>(f.food_drink??/อาหาร|เครื่องดื่ม|กาแฟ|food|drink|coffee/i.test(f.category_name)));const foodDays=new Set(food.filter(f=>f.kind==='expense').map(f=>f.date)).size;
  const previous=shiftMonth(month,-1);const previousDays=Math.min(elapsed,monthDays(previous));const previousFacts=data.facts.filter(f=>belongs(f,previous)&&Number(f.date.slice(8))<=previousDays);
  const dailyAverage=average(expenses,elapsed)!;const previousAverage=average(net(previousFacts),previousDays)!;
  const daily=Array.from({length:elapsed},(_,i)=>{const date=month.slice(0,7)+'-'+String(i+1).padStart(2,'0');const facts=selected.filter(f=>f.date===date);return {day:i+1,expenses:net(facts)/100,count:sum(facts.filter(f=>f.kind==='expense').map(f=>f.count))}});
  const weekdays=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'].map((name,index)=>{const dates=daily.filter(d=>new Date(`${month.slice(0,7)}-${String(d.day).padStart(2,'0')}T12:00:00Z`).getUTCDay()===index);return {name,days:dates.length,average:dates.length?dates.reduce((s,d)=>s+d.expenses,0)/dates.length:0,count:dates.reduce((s,d)=>s+d.count,0)}});
- const categories=[...new Set(selected.filter(f=>f.kind!=='income').map(f=>f.category_id))].map(id=>{const rows=selected.filter(f=>f.category_id===id);return {id,name:rows[0].category_name,gross:sum(rows.filter(f=>f.kind==='expense').map(f=>decimalSatang(f.amount))),net:net(rows),count:sum(rows.filter(f=>f.kind==='expense').map(f=>f.count))}}).sort((a,b)=>b.gross-a.gross);
+ const categoryKey=(f:AnalyticsFact)=>JSON.stringify([f.category_id,f.category_name,f.category_icon||'']);
+ const categories=[...new Set(selected.filter(f=>f.kind!=='income').map(categoryKey))].map(key=>{const rows=selected.filter(f=>categoryKey(f)===key);return {key,id:rows[0].category_id,name:rows[0].category_name,icon:rows[0].category_icon,gross:sum(rows.filter(f=>f.kind==='expense').map(f=>decimalSatang(f.amount))),net:net(rows),count:sum(rows.filter(f=>f.kind==='expense').map(f=>f.count))}}).sort((a,b)=>b.gross-a.gross);
  const trends=Array.from({length:6},(_,i)=>{const m=shiftMonth(month,i-5);const rows=data.facts.filter(f=>belongs(f,m));const n=m===month?elapsed:monthDays(m);const expense=net(rows);const earned=sum(rows.filter(f=>f.kind==='income').map(f=>decimalSatang(f.amount)));return {month:m,label:new Date(m+'T12:00:00Z').toLocaleDateString('th-TH',{month:'short',timeZone:'Asia/Bangkok'}),expenses:expense/100,income:earned/100,daily:expense/n/100,savings:decimalSatang(data.savings.find(s=>s.month===m)?.amount||'0')/100,partial:m===month&&current,hasData:rows.length>0}});
  const tags=(['need','want',null] as const).map(tag=>({tag,name:tag==='need'?'จำเป็น':tag==='want'?'ความสุข':'ไม่ระบุ',net:net(selected.filter(f=>f.tag===tag))}));
  const burn=snapshot.envelopes.map(e=>{const target=decimalSatang(e.allocated);const spent=decimalSatang(e.spent);const projected=Math.round(Math.max(0,spent)/elapsed*days);return {id:e.id,name:e.name,target,spent,remaining:decimalSatang(e.remaining),ratio:target>0?spent/target:null,projected,excess:Math.max(0,projected-target)}});

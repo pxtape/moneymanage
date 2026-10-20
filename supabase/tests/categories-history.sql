@@ -1,0 +1,52 @@
+begin;
+create temporary table category_test_ids(label text primary key,id uuid default gen_random_uuid());
+insert into category_test_ids(label) values('alice'),('bob'),('foreign');
+grant select on category_test_ids to authenticated;
+insert into auth.users(id) select id from category_test_ids where label in ('alice','bob');
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select id::text from category_test_ids where label='alice'),true);
+do $$
+declare s jsonb;a jsonb;c uuid;e uuid;t1 uuid;t2 uuid;v text;old_v text;before_tx timestamptz;m date:=date_trunc('month',timezone('Asia/Bangkok',now()))::date;
+begin
+ perform public.complete_onboarding('Category Alice','เงินรวม',1000);
+ select id,updated_at::text into c,v from public.categories where name='อาหาร';
+ e:=(public.moneyspace_write('create_envelope',jsonb_build_object('name','Food budget','amount','6000','category_ids',jsonb_build_array(c)),gen_random_uuid())->>'id')::uuid;
+ select updated_at::text into v from public.categories where id=c;old_v:=v;
+ t1:=(public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','category_id',c,'amount','80','date',m),gen_random_uuid())->>'id')::uuid;
+ perform public.moneyspace_write('update_category',jsonb_build_object('category_id',c,'version',v,'name','มื้อพัก','icon','🥗','food_drink',false),gen_random_uuid());
+ if not exists(select 1 from public.transactions where id=t1 and category_name_snapshot='อาหาร' and category_icon_snapshot='🍜' and food_drink_snapshot and envelope_name_snapshot='Food budget') then raise exception 'FAIL: rename mutated historical labels';end if;
+ begin perform public.moneyspace_write('update_category',jsonb_build_object('category_id',c,'version',old_v,'name','Stale','icon','☕'),gen_random_uuid());raise exception 'FAIL: stale category edit';exception when raise_exception then if sqlerrm<>'STALE_VERSION' then raise;end if;end;
+ t2:=(public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','category_id',c,'amount','20','date',m),gen_random_uuid())->>'id')::uuid;
+ if not exists(select 1 from public.transactions where id=t2 and category_name_snapshot='มื้อพัก' and category_icon_snapshot='🥗' and not food_drink_snapshot) then raise exception 'FAIL: new label missing';end if;
+ select updated_at::text into v from public.transactions where id=t1;
+ perform public.moneyspace_write('edit_transaction',jsonb_build_object('id',t1,'version',v,'kind','expense','category_id',c,'envelope_id',e,'amount','90','date',m,'merchant','อาหาร'),gen_random_uuid());
+ if not exists(select 1 from public.transactions where id=t1 and category_name_snapshot='อาหาร' and category_icon_snapshot='🍜') then raise exception 'FAIL: amount edit refreshed labels';end if;
+ select updated_at into before_tx from public.transactions where id=t1;
+ select updated_at::text into v from public.categories where id=c;
+ perform public.moneyspace_write('delete_category',jsonb_build_object('category_id',c,'version',v),gen_random_uuid());
+ if exists(select 1 from public.categories where id=c) then raise exception 'FAIL: deleted category in picker';end if;
+ if not exists(select 1 from public.transactions where id=t1 and updated_at=before_tx and category_name_snapshot='อาหาร') then raise exception 'FAIL: category delete changed a transaction';end if;
+ begin perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','category_id',c,'amount','1','date',m),gen_random_uuid());raise exception 'FAIL: archived category used for new expense';exception when insufficient_privilege then null;end;
+ select updated_at::text into v from public.transactions where id=t2;
+ perform public.moneyspace_write('edit_transaction',jsonb_build_object('id',t2,'version',v,'kind','expense','category_id',c,'envelope_id',e,'amount','25','date',m,'merchant','มื้อพัก'),gen_random_uuid());
+ perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','refund','refund_of_id',t1,'amount','30','date',m),gen_random_uuid());
+ s:=public.moneyspace_snapshot(m);a:=public.moneyspace_analytics(m);
+ if (s->>'cash')::numeric<>915 or (s->>'expenses')::numeric<>85 then raise exception 'FAIL: amount totals changed';end if;
+ if not exists(select 1 from jsonb_array_elements(a->'facts') f where f->>'kind'='refund' and f->>'category_name'='อาหาร' and f->>'category_icon'='🍜' and (f->>'food_drink')::boolean) then raise exception 'FAIL: refund lost original classification';end if;
+ if not exists(select 1 from jsonb_array_elements(a->'facts') f where f->>'category_name'='มื้อพัก' and f->>'category_icon'='🥗') then raise exception 'FAIL: renamed history missing';end if;
+ if (select count(*) from public.transaction_versions where transaction_id=t1)<>2 then raise exception 'FAIL: category edits rewrote transaction audit';end if;
+ if (select count(*) from public.audit_events where entity_table='categories' and entity_id=c and action='UPDATE')<2 then raise exception 'FAIL: category audit missing';end if;
+ -- Recreating the same label gives a different identity, with historical snapshots intact.
+ insert into public.categories(owner_id,name,icon) values(auth.uid(),'มื้อพัก','☕');
+end $$;
+reset role;
+insert into public.profiles(id,display_name,onboarding_completed_at) select id,'Bob',now() from category_test_ids where label='bob';
+insert into public.categories(id,owner_id,name,icon,updated_at) values((select id from category_test_ids where label='foreign'),(select id from category_test_ids where label='bob'),'Private','🌿','2026-01-01T00:00:00Z');
+set local role authenticated;
+do $$begin
+ begin perform public.moneyspace_write('delete_category',jsonb_build_object('category_id',(select id from category_test_ids where label='foreign'),'version','2026-01-01T00:00:00Z'),gen_random_uuid());raise exception 'FAIL: cross-owner category deletion';exception when insufficient_privilege then null;end;
+ begin update public.categories set name='Bypass';raise exception 'FAIL: direct category update';exception when insufficient_privilege then null;end;
+end $$;
+reset role;
+select 'PASS: category rename/emoji/delete preserve labels, food classification, balances, analytics, refunds, edits, audit and ownership' as result;
+rollback;
