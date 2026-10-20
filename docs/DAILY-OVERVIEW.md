@@ -1,3 +1,5 @@
+> Later refinements to budget cadence, compact sections and data sufficiency are documented in [analytics and compact views](ANALYTICS-AND-COMPACT-VIEWS.md).
+
 # Daily overview hierarchy revision
 
 This revision addresses the user’s screenshot critique of four equal-weight, oversized statistic cards and a vertically stretched budget list.

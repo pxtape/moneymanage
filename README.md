@@ -92,3 +92,5 @@ Screen roles and hierarchy: Home leads with actual money and daily budget use, w
 Accepted-scope closeout and final interaction polish: [closeout notes](docs/CLOSEOUT.md). Finite animations respect reduced motion; financial rules and reviewed screen order stay unchanged.
 
 The revised daily overview emphasizes current cash after earmarks, separates selected-month activity, and uses responsive priority-ordered budget cards. See [daily overview review](docs/DAILY-OVERVIEW.md).
+
+Budget pockets now distinguish daily, bill and occasional use. Compact activity/goals/planning and observation-aware analytics address the full screenshot review. Existing pockets start neutral; choose their cadence in the budget editor. See [analytics and compact views](docs/ANALYTICS-AND-COMPACT-VIEWS.md).
