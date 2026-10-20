@@ -11,7 +11,7 @@ begin
  perform public.complete_onboarding('M4 Alice','เงินรวม',1000);
  s:=public.moneyspace_snapshot(m);c:=(s->'categories'->0->>'id')::uuid;
  e:=(public.moneyspace_write('create_envelope',jsonb_build_object('name','Food','amount','100','category_ids',jsonb_build_array(c)),gen_random_uuid())->>'id')::uuid;
- tx:=(public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','category_id',c,'amount','80','date',m),gen_random_uuid())->>'id')::uuid;
+ tx:=(public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','category_id',c,'amount','80','tag','need','date',m),gen_random_uuid())->>'id')::uuid;
  s:=public.moneyspace_snapshot(m);v:=s->'envelopes'->0->>'updated_at';old_v:=v;
  perform public.moneyspace_write('allocate',jsonb_build_object('envelope_id',e,'name','Food and drink','amount','120','month',m,'version',v,'category_ids',jsonb_build_array(c)),gen_random_uuid());
  s:=public.moneyspace_snapshot(m);
