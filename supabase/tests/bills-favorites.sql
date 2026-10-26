@@ -72,6 +72,16 @@ begin
  if s->'bills'->'items'->0->'transaction'->>'id'<>tx::text or (s->'bills'->>'pending_total')::numeric<>100 then raise exception 'FAIL: historical paid entry unavailable or arrears still pending';end if;
 end $$;
 reset role;
+-- Long-lived definitions must remain editable without moving their original start.
+update public.recurring_rules set bill_first_month=(date_trunc('month',timezone('Asia/Bangkok',now()))-interval '2 years')::date where owner_id=(select id from bill_ids where label='alice') and bill_name='Arrears';
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select id::text from bill_ids where label='alice'),true);
+do $$declare r public.recurring_rules%rowtype;begin
+ select * into r from public.recurring_rules where owner_id=auth.uid() and bill_name='Arrears';
+ perform public.moneyspace_write('update_bill',jsonb_build_object('id',r.id,'version',r.updated_at,'name','Long-lived','amount','100','category_id',r.category_id,'first_month',r.bill_first_month,'due_day',31),gen_random_uuid());
+ if not exists(select 1 from public.recurring_rules where id=r.id and bill_name='Long-lived') then raise exception 'FAIL: old bill cannot be edited';end if;
+end $$;
+reset role;
 create temporary table foreign_bill as select id,updated_at from public.recurring_rules where owner_id=(select id from bill_ids where label='alice');grant select on foreign_bill to authenticated;
 set local role authenticated;
 select set_config('request.jwt.claim.sub',(select id::text from bill_ids where label='bob'),true);
