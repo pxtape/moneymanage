@@ -1,4 +1,6 @@
+import {mockWeekly} from './support/weekly';
 import {test,expect} from '@playwright/test';
+test.beforeEach(async({page})=>{await mockWeekly(page)});
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 test('monthly liquidity plan separates forecasts from money and persists monthly sources, savings and deficits',async({page})=>{
  const id='00000000-0000-4000-8000-000000000456',month=today.slice(0,7)+'-01';const jwt=[btoa(JSON.stringify({alg:'HS256',typ:'JWT'})),btoa(JSON.stringify({sub:id,exp:Math.floor(Date.now()/1000)+3600,aud:'authenticated',role:'authenticated'})),'mock'].join('.');

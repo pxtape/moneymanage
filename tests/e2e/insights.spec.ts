@@ -1,5 +1,7 @@
+import {mockWeekly} from './support/weekly';
 import {test,expect} from '@playwright/test';
 import type {AnalyticsData} from '../../src/analytics';
+test.beforeEach(async({page})=>{await mockWeekly(page)});
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const month=today.slice(0,7)+'-01';
 test('real analytics loads all aggregates, explains averages, retries errors and fits mobile',async({page})=>{

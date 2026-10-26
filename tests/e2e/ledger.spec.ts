@@ -1,4 +1,6 @@
+import {mockWeekly} from './support/weekly';
 import {test,expect} from '@playwright/test';
+test.beforeEach(async({page})=>{await mockWeekly(page)});
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 test('real-space form retries the same request after an uncertain response; monthly targets never consume money',async({page})=>{
  const id='00000000-0000-4000-8000-000000000456';const account='00000000-0000-4000-8000-000000000111';const category='00000000-0000-4000-8000-000000000113';const envelope='00000000-0000-4000-8000-000000000114';

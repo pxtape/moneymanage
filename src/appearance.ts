@@ -1,0 +1,3 @@
+export interface AppearancePrefs{hideSummary:boolean;budgetAlerts:boolean;weeklyReview:boolean;reviewDay:number}
+export const defaultAppearance:AppearancePrefs={hideSummary:false,budgetAlerts:true,weeklyReview:true,reviewDay:0};
+export function readAppearance(owner:string):AppearancePrefs{try{const data=JSON.parse(localStorage.getItem('moneyspace-appearance:'+owner)||'{}');return {hideSummary:data.hideSummary===true,budgetAlerts:data.budgetAlerts!==false,weeklyReview:data.weeklyReview!==false,reviewDay:Number.isInteger(data.reviewDay)&&data.reviewDay>=0&&data.reviewDay<=6?data.reviewDay:0}}catch{return {...defaultAppearance}}}

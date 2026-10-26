@@ -1,4 +1,4 @@
-export interface Category { id: string; name: string; icon: string; envelope: string | null; tag: 'need'|'want'; updated_at?:string; foodDrink?:boolean; spendingGroup?:'food'|'drink'|'other' }
+export interface Category { favorite?:boolean; id: string; name: string; icon: string; envelope: string | null; tag: 'need'|'want'; updated_at?:string; foodDrink?:boolean; spendingGroup?:'food'|'drink'|'other' }
 export const defaultCategories: Category[] = [
   { id:'food',name:'อาหาร',icon:'🍜',envelope:'อาหารและเครื่องดื่ม',tag:'need' },
   { id:'drink',name:'เครื่องดื่ม',icon:'☕',envelope:'อาหารและเครื่องดื่ม',tag:'want' },

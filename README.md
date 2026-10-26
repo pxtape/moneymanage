@@ -94,3 +94,5 @@ Accepted-scope closeout and final interaction polish: [closeout notes](docs/CLOS
 The revised daily overview emphasizes current cash after earmarks, separates selected-month activity, and uses responsive priority-ordered budget cards. See [daily overview review](docs/DAILY-OVERVIEW.md).
 
 Budget pockets now distinguish daily, bill and occasional use. Compact activity/goals/planning and observation-aware analytics address the full screenshot review. Existing pockets start neutral; choose their cadence in the budget editor. See [analytics and compact views](docs/ANALYTICS-AND-COMPACT-VIEWS.md).
+
+Teal/mint personal tools: original pocket covers/colors/icons, synchronized category favorites, private weekly PNG cards and on-device in-app review preferences. Competition was canceled. See [theme and personal tools review](docs/TEAL-THEME-AND-PERSONAL-TOOLS.md).
