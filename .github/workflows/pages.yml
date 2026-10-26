@@ -50,7 +50,9 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/category-default-tag.sql
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/spending-cadence.sql
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/appearance-weekly.sql
+      - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/bills-favorites.sql
       - run: bash supabase/tests/concurrency.sh
+      - run: bash supabase/tests/bills-concurrency.sh
   build:
     runs-on: ubuntu-latest
     steps:

@@ -96,3 +96,5 @@ The revised daily overview emphasizes current cash after earmarks, separates sel
 Budget pockets now distinguish daily, bill and occasional use. Compact activity/goals/planning and observation-aware analytics address the full screenshot review. Existing pockets start neutral; choose their cadence in the budget editor. See [analytics and compact views](docs/ANALYTICS-AND-COMPACT-VIEWS.md).
 
 Teal/mint personal tools: original pocket covers/colors/icons, synchronized category favorites, private weekly PNG cards and on-device in-app review preferences. Competition was canceled. See [theme and personal tools review](docs/TEAL-THEME-AND-PERSONAL-TOOLS.md).
+
+Monthly bill tracking and amount/category expense favorites are now available. Bill definitions are estimates, and only explicit payment confirmation creates an expense; already recorded expenses can be linked without another deduction. Home separates the after-bills estimate from actual money. See [bill/favorite rules, security and acceptance](docs/BILLS-AND-FAVORITES.md).
