@@ -1,5 +1,7 @@
 # Monthly bills and expense favorites
 
+> Retired by user request. This document records an earlier release; its controls and endpoints are no longer available. Actual historical expenses remain preserved. See [current comparison/themes/reminders](COMPARISON-THEMES-AND-REMINDERS.md).
+
 Recurring bills are estimates, separate from expense budgets and actual transactions. Defining a bill creates no expense, reserve, or savings entry. This is an in-app due-date list, with no bank connection, automatic payment or background notification.
 
 ## Bill flow

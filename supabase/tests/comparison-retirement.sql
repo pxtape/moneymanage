@@ -1,0 +1,73 @@
+begin;
+create temporary table compare_ids(label text primary key,id uuid default gen_random_uuid());insert into compare_ids(label) values('tape'),('pat'),('outsider');grant select on compare_ids to authenticated;
+insert into auth.users(id) select id from compare_ids;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select id::text from compare_ids where label='tape'),true);
+select public.complete_onboarding('Test Tape','เงินรวม',10000);
+select set_config('request.jwt.claim.sub',(select id::text from compare_ids where label='pat'),true);
+select public.complete_onboarding('Test Pat','เงินรวม',10000);
+select set_config('request.jwt.claim.sub',(select id::text from compare_ids where label='outsider'),true);
+select public.complete_onboarding('Test Other','เงินรวม',10000);
+reset role;
+insert into moneyspace_private.comparison_links(user_a,user_b) select a.id,b.id from compare_ids a cross join compare_ids b where a.label='tape' and b.label='pat';
+set local role authenticated;
+select set_config('request.jwt.claim.sub',(select id::text from compare_ids where label='tape'),true);
+do $$declare s jsonb;c uuid;tx uuid;m date:=date_trunc('month',timezone('Asia/Bangkok',now()))::date;today date:=timezone('Asia/Bangkok',now())::date;begin
+ s:=public.moneyspace_snapshot(m);
+ if s?'bills' or s?'expense_templates' then raise exception 'FAIL: retired feature in snapshot';end if;
+ begin perform public.moneyspace_write('create_bill','{}',gen_random_uuid());raise exception 'FAIL: retired write accepted';exception when raise_exception then if sqlerrm<>'FEATURE_REMOVED' then raise;end if;end;
+ begin perform public.moneyspace_write('create_template','{}',gen_random_uuid());raise exception 'FAIL: retired template write accepted';exception when raise_exception then if sqlerrm<>'FEATURE_REMOVED' then raise;end if;end;
+ begin perform public.moneyspace_bill_status(m);raise exception 'FAIL: retired bill read exposed';exception when insufficient_privilege then null;end;
+ begin select 1 from moneyspace_private.comparison_links;raise exception 'FAIL: pair table exposed';exception when insufficient_privilege then null;end;
+ select id into c from public.categories where owner_id=auth.uid() and spending_group='food' limit 1;
+ if c is null then raise exception 'FAIL: fixture has no food category';end if;
+ for i in 1..105 loop tx:=(public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','amount','1.10','category_id',c,'merchant','PRIVATE SHOP','notes','SECRET NOTE','date',today),gen_random_uuid())->>'id')::uuid;end loop;
+ perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','refund','amount','.50','refund_of_id',tx,'date',today),gen_random_uuid());
+ perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','income','amount','999','date',today),gen_random_uuid());
+ if not (public.moneyspace_reminder_context()->>'has_expense')::boolean then raise exception 'FAIL: reminder ignored actual entries';end if;
+ s:=public.moneyspace_comparison(m);
+ if s->>'status'<>'waiting' or s?'people' then raise exception 'FAIL: missing consent revealed aggregates';end if;
+ perform public.moneyspace_comparison_consent(true,(s->>'version')::timestamptz);
+ -- Same-state retry is safe even with an old version.
+ perform public.moneyspace_comparison_consent(true,(s->>'version')::timestamptz);
+ s:=public.moneyspace_comparison(m);
+ if s->>'status'<>'waiting' or s?'people' then raise exception 'FAIL: unilateral share';end if;
+end $$;
+select set_config('request.jwt.claim.sub',(select id::text from compare_ids where label='pat'),true);
+do $$declare s jsonb;c uuid;m date:=date_trunc('month',timezone('Asia/Bangkok',now()))::date;t jsonb;v timestamptz;begin
+ if (public.moneyspace_reminder_context()->>'has_expense')::boolean then raise exception 'FAIL: peer reminder leaked';end if;
+ select id into c from public.categories where owner_id=auth.uid() and spending_group='drink' limit 1;
+ perform public.moneyspace_write('add_transaction',jsonb_build_object('kind','expense','amount','42.25','category_id',c,'date',timezone('Asia/Bangkok',now())::date),gen_random_uuid());
+ s:=public.moneyspace_comparison(m);v:=(s->>'version')::timestamptz;
+ perform public.moneyspace_comparison_consent(true,v);
+ s:=public.moneyspace_comparison(m);
+ if s->>'status'<>'ready' or jsonb_array_length(s->'people')<>2 then raise exception 'FAIL: reciprocal consent missing';end if;
+ select x into t from jsonb_array_elements(s->'people') x where x->>'key'='tape';
+ if (select sum((x->>'net')::numeric) from jsonb_array_elements(t->'daily') x)<>115 or (select sum((x->>'count')::int) from jsonb_array_elements(t->'daily') x)<>105 or (select sum((x->>'food')::numeric) from jsonb_array_elements(t->'daily') x)<>115 then raise exception 'FAIL: preview limit, income or refund distorted aggregates';end if;
+ if s::text like '%PRIVATE SHOP%' or s::text like '%SECRET NOTE%' or s::text like '%owner_id%' or s::text like '%account_id%' or s::text like '%income%' then raise exception 'FAIL: private fields leaked';end if;
+ if exists(select 1 from public.transactions where owner_id<>(select auth.uid())) then raise exception 'FAIL: raw ledger RLS broadened';end if;
+ begin perform public.moneyspace_comparison_consent(false,v);raise exception 'FAIL: stale revocation accepted';exception when raise_exception then if sqlerrm<>'STALE_VERSION' then raise;end if;end;
+ perform public.moneyspace_comparison_consent(false,(s->>'version')::timestamptz);
+ s:=public.moneyspace_comparison(m);
+ if s->>'status'<>'waiting' or s?'people' then raise exception 'FAIL: revoked sharing still reveals aggregates';end if;
+ begin perform public.moneyspace_comparison((m+interval '1 month')::date);raise exception 'FAIL: future comparison';exception when raise_exception then if sqlerrm<>'INVALID_MONTH' then raise;end if;end;
+end $$;
+select set_config('request.jwt.claim.sub',(select id::text from compare_ids where label='tape'),true);
+do $$declare s jsonb;begin
+ s:=public.moneyspace_comparison(date_trunc('month',timezone('Asia/Bangkok',now()))::date);
+ if s->>'status'<>'waiting' or s?'people' then raise exception 'FAIL: peer can read after revoke';end if;
+end $$;
+select set_config('request.jwt.claim.sub',(select id::text from compare_ids where label='outsider'),true);
+do $$declare s jsonb;begin
+ s:=public.moneyspace_comparison(date_trunc('month',timezone('Asia/Bangkok',now()))::date);
+ if s->>'status'<>'unavailable' or s?'people' or s?'version' then raise exception 'FAIL: outsider sees pair';end if;
+ begin perform public.moneyspace_comparison_consent(true,now());raise exception 'FAIL: outsider consent';exception when insufficient_privilege then null;end;
+end $$;
+reset role;set local role anon;
+do $$begin
+ begin perform public.moneyspace_comparison(current_date);raise exception 'FAIL: anon comparison';exception when insufficient_privilege then null;end;
+ begin perform public.moneyspace_comparison_consent(true,now());raise exception 'FAIL: anon consent';exception when insufficient_privilege then null;end;
+ begin perform public.moneyspace_reminder_context();raise exception 'FAIL: anon reminder';exception when insufficient_privilege then null;end;
+end $$;
+reset role;
+rollback;
