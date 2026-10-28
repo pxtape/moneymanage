@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   Line,
   LineChart,
@@ -17,8 +16,8 @@ import { ChartNoAxesCombined, LockKeyhole, RefreshCw } from "lucide-react";
 import { supabase } from "../supabase";
 import {
   comparisonSeries,
+  detailedComparison,
   type ComparisonData,
-  type ComparisonMetric,
 } from "../comparison";
 import { baht } from "../finance";
 import { financialError } from "../ledger";
@@ -39,8 +38,7 @@ export default function Comparison({
   const [data, setData] = useState<ComparisonData | null>(null),
     [error, setError] = useState(""),
     [reload, setReload] = useState(0),
-    [busy, setBusy] = useState(false),
-    [metric, setMetric] = useState<ComparisonMetric>("net");
+    [busy, setBusy] = useState(false);
   const saving = useRef(false);
   useEffect(() => {
     let live = true;
@@ -77,15 +75,20 @@ export default function Comparison({
       window.removeEventListener("focus", onFocus);
     };
   }, [month, revision, reload]);
-  async function consent() {
+  async function consent(details = false) {
     if (!data || saving.current) return;
     saving.current = true;
     setBusy(true);
     setError("");
     try {
       const { data: result, error } = await supabase.rpc(
-        "moneyspace_comparison_consent",
-        { p_enabled: !data.mine_enabled, p_version: data.version },
+        details
+          ? "moneyspace_comparison_details"
+          : "moneyspace_comparison_consent",
+        {
+          p_enabled: details ? !data.details_mine_enabled : !data.mine_enabled,
+          p_version: data.version,
+        },
       );
       if (error) throw Error(financialError(error));
       if (!result?.confirmed) throw Error("ยังไม่ได้รับการยืนยันจาก Supabase");
@@ -102,14 +105,20 @@ export default function Comparison({
   const calculated = useMemo(() => {
     if (data?.status !== "ready") return null;
     try {
-      return { value: comparisonSeries(data, metric), error: "" };
+      return {
+        value: {
+          monthly: comparisonSeries(data, "net"),
+          ...detailedComparison(data),
+        },
+        error: "",
+      };
     } catch {
       return {
         value: null,
         error: "ยอดหรือช่วงวันที่เกินขอบเขตการแสดงอย่างแม่นยำ กรุณาโหลดใหม่",
       };
     }
-  }, [data, metric]);
+  }, [data]);
   const result = calculated?.value;
   const tooltip = {
     contentStyle: {
@@ -122,20 +131,19 @@ export default function Comparison({
     formatter: money,
   };
   return (
-    <div className="comparison-space">
-      <section className="comparison-intro panel">
+    <div className="comparison-space four-chart-comparison">
+      <div className="comparison-intro panel">
         <div>
-          <span className="eyebrow">TWO PERSPECTIVES, ONE BETTER HABIT</span>
           <h2>
             <ChartNoAxesCombined size={24} /> จังหวะการใช้เงินของเราสองคน
           </h2>
-          <p>เทียบเพื่อเข้าใจและช่วยกันปรับ ไม่ตัดสินว่าใครเก่งกว่า</p>
+          <p>เทียบจากที่จดจริง หมวดของเราไม่จำเป็นต้องเหมือนกัน</p>
         </div>
         <div className="comparison-legend">
           <span style={{ color: colors.tape }}>● Tape</span>
           <span style={{ color: colors.pat }}>● Pat</span>
         </div>
-      </section>
+      </div>
       {error || calculated?.error ? (
         <section className="panel" role="alert">
           <p>{error || calculated?.error}</p>
@@ -151,10 +159,6 @@ export default function Comparison({
       ) : data.status === "unavailable" ? (
         <section className="panel">
           <h2>ยังไม่ได้เชื่อมคู่เปรียบเทียบ</h2>
-          <p>
-            หน้านี้ใช้ได้เฉพาะคู่บัญชีที่ผู้ดูแลตั้งไว้
-            ไม่เปิดค้นหาข้อมูลผู้ใช้อื่น
-          </p>
         </section>
       ) : (
         <>
@@ -167,7 +171,7 @@ export default function Comparison({
               </h3>
               <p>
                 รายจ่ายสุทธิรายวัน ค่ากิน เครื่องดื่ม และจำนวนรายการเท่านั้น
-                ไม่แชร์ชื่อร้าน หมายเหตุ รายรับ เงินรวม หรือเงินออม
+                ไม่แชร์ชื่อร้าน หมายเหตุ หรือรายการส่วนตัว
               </p>
               <small>
                 {data.mine_enabled ? "คุณเปิดแชร์แล้ว" : "คุณยังไม่ได้เปิดแชร์"}{" "}
@@ -201,48 +205,27 @@ export default function Comparison({
           ) : (
             result && (
               <>
-                <div className="comparison-toolbar">
-                  <div role="group" aria-label="ข้อมูลที่เปรียบเทียบ">
-                    {(
-                      [
-                        { id: "net", label: "รายจ่ายทั้งหมด" },
-                        { id: "food", label: "ค่ากิน" },
-                        { id: "drink", label: "เครื่องดื่ม" },
-                      ] as const
-                    ).map((m) => (
-                      <button
-                        key={m.id}
-                        aria-pressed={metric === m.id}
-                        onClick={() => setMetric(m.id)}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                  <small>
-                    ช่วงเดียวกัน {data.month} ถึง {data.through} · บาท
-                  </small>
-                </div>
-                <p className="comparison-caveat">
-                  ยอดจากที่จดเท่านั้น ·
-                  วันที่ไม่มีรายการไม่ได้ยืนยันว่าไม่ใช้เงิน ·
-                  เงินคืนหักในวันที่ได้รับ จึงอาจติดลบ · ไม่รวมโอนเงิน ตั้งงบ
-                  หรือกันออม
-                </p>
-                <section className="panel comparison-chart-panel">
+                <section
+                  className="panel comparison-chart-panel"
+                  data-testid="comparison-recent"
+                >
                   <div className="section-heading">
                     <div>
-                      <h2>วันไหน ใช้เท่าไหร่</h2>
-                      <p>วางยอดรายวันเคียงกัน เห็นวันที่ใช้มากได้ทันที</p>
+                      <span className="comparison-order">01 · RECENT DAYS</span>
+                      <h2>รายจ่าย 7 วันที่ผ่านมา</h2>
+                      <p>
+                        {data.recent_from} ถึง {data.recent_through} · รวมวันนี้
+                        ไม่ขึ้นกับเดือนที่เลือก
+                      </p>
                     </div>
                   </div>
                   <div
                     className="comparison-chart"
                     role="img"
-                    aria-label="กราฟเปรียบเทียบรายจ่ายรายวัน Tape และ Pat"
+                    aria-label="กราฟรายจ่าย 7 วันล่าสุด Tape และ Pat"
                   >
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={result.daily}>
+                      <BarChart data={result.recent}>
                         <CartesianGrid
                           stroke="var(--border)"
                           vertical={false}
@@ -252,11 +235,7 @@ export default function Comparison({
                           dataKey="label"
                           tick={{ fill: "var(--muted)", fontSize: 11 }}
                         />
-                        <YAxis
-                          tickFormatter={axisMoney}
-                          width={65}
-                          tick={{ fill: "var(--muted)", fontSize: 11 }}
-                        />
+                        <YAxis tickFormatter={axisMoney} width={65} />
                         <Tooltip
                           {...tooltip}
                           labelFormatter={(v) => `วันที่ ${v}`}
@@ -266,244 +245,313 @@ export default function Comparison({
                           name="Tape"
                           dataKey="tape"
                           fill={colors.tape}
-                          radius={[3, 3, 0, 0]}
+                          radius={[4, 4, 0, 0]}
                           isAnimationActive={false}
                         />
                         <Bar
                           name="Pat"
                           dataKey="pat"
                           fill={colors.pat}
-                          radius={[3, 3, 0, 0]}
+                          radius={[4, 4, 0, 0]}
                           isAnimationActive={false}
                         />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+                  <div className="comparison-inline-totals">
+                    <span>
+                      Tape <strong>{baht(result.recentTape)}</strong>
+                    </span>
+                    <span>
+                      Pat <strong>{baht(result.recentPat)}</strong>
+                    </span>
+                  </div>
+                  <p className="analytics-note">
+                    บาท · หักเงินคืนตามวันที่ได้รับ
+                    วันที่ไม่มีรายการไม่ได้ยืนยันว่าไม่ได้ใช้เงิน
+                  </p>
                 </section>
-                <section className="comparison-summary">
-                  {result.summaries.map((p) => (
-                    <article
-                      className="panel"
-                      key={p.key}
-                      style={
-                        {
-                          "--person-color": colors[p.key],
-                        } as React.CSSProperties
-                      }
+                <section
+                  className="panel comparison-chart-panel"
+                  data-testid="comparison-month"
+                >
+                  <div className="section-heading">
+                    <div>
+                      <span className="comparison-order">
+                        02 · MONTH TO DATE
+                      </span>
+                      <h2>รายจ่ายสะสมทั้งเดือน</h2>
+                      <p>
+                        {data.month} ถึง {data.through} · สองเส้นในกราฟเดียวกัน
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    className="comparison-chart"
+                    role="img"
+                    aria-label="กราฟเส้นรายจ่ายสะสมทั้งเดือน Tape และ Pat"
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={result.monthly.daily}>
+                        <CartesianGrid
+                          stroke="var(--border)"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fill: "var(--muted)", fontSize: 11 }}
+                        />
+                        <YAxis tickFormatter={axisMoney} width={65} />
+                        <Tooltip
+                          {...tooltip}
+                          labelFormatter={(v) => `วันที่ ${v}`}
+                        />
+                        <Legend />
+                        <Line
+                          name="Tape"
+                          dataKey="tapeRunning"
+                          type="linear"
+                          stroke={colors.tape}
+                          strokeWidth={3}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                        <Line
+                          name="Pat"
+                          dataKey="patRunning"
+                          type="linear"
+                          stroke={colors.pat}
+                          strokeWidth={3}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="comparison-inline-totals">
+                    {result.monthly.summaries.map((p) => (
+                      <span key={p.key}>
+                        {p.name} <strong>{baht(p.total)}</strong>
+                      </span>
+                    ))}
+                  </div>
+                  <p className="analytics-note">
+                    หักเงินคืนแล้ว จึงอาจลดลงบางวัน · ไม่รวมโอนเงิน ตั้งงบ
+                    หรือกันออม
+                  </p>
+                </section>
+                <section
+                  className="panel comparison-chart-panel"
+                  data-testid="comparison-categories"
+                >
+                  <div className="section-heading">
+                    <div>
+                      <span className="comparison-order">
+                        03 · YOUR OWN CATEGORIES
+                      </span>
+                      <h2>รายจ่ายสะสมแยกประเภท</h2>
+                      <p>
+                        เดือนที่เลือก · แสดงหมวดจริงของแต่ละคนข้างกัน
+                        ไม่บังคับจับคู่หมวด · ใช้สเกลจำนวนเงินเดียวกัน
+                      </p>
+                    </div>
+                  </div>
+                  <p className="comparison-caveat">
+                    ถ้าจดอาหารกับเครื่องดื่มรวมกัน กราฟจะแสดงตามหมวดที่จด
+                    ไม่เดาแยกยอด · หมวดชื่อเดียวกันอาจมีขอบเขตต่างกัน
+                  </p>
+                  <div className="comparison-details-sharing">
+                    <div>
+                      <strong>
+                        การแชร์เพิ่มเติม: ชื่อหมวดและยอดเงินรวมปัจจุบัน
+                      </strong>
+                      <p>
+                        {data.details_mine_enabled
+                          ? "คุณเปิดแชร์เพิ่มเติมแล้ว"
+                          : "คุณยังไม่ได้เปิดแชร์เพิ่มเติม"}{" "}
+                        ·{" "}
+                        {data.details_peer_enabled
+                          ? "อีกคนเปิดแล้ว"
+                          : "รออีกคนเปิดด้วย"}{" "}
+                        ไม่เปิดเผยชื่อร้านหรือหมายเหตุ
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void consent(true)}
                     >
-                      <span className="comparison-person">● {p.name}</span>
-                      <strong>{baht(p.total)}</strong>
-                      <div>
-                        <span>
-                          เฉลี่ย / วันปฏิทิน
-                          <strong>{baht(p.calendarAverage)}</strong>
-                        </span>
-                        <span>
-                          วันที่มีรายจ่าย<strong>{p.spendingDays} วัน</strong>
-                        </span>
-                        <span>
-                          จำนวนรายจ่าย<strong>{p.count} ครั้ง</strong>
-                        </span>
+                      {busy
+                        ? "กำลังรอยืนยัน…"
+                        : data.details_mine_enabled
+                          ? "หยุดแชร์หมวดและเงินรวม"
+                          : "แชร์หมวดและเงินรวมของฉัน"}
+                    </Button>
+                  </div>
+                  {data.details_ready ? (
+                    <div className="comparison-own-categories">
+                      {result.categories.map((p) => (
+                        <article key={p.key}>
+                          <div
+                            className="comparison-person-title"
+                            style={{ color: colors[p.key] }}
+                          >
+                            <h3>{p.name}</h3>
+                            <strong>{baht(p.total)}</strong>
+                          </div>
+                          {p.rows.length ? (
+                            <>
+                              <div className="own-category-scroll">
+                                <div
+                                  style={{
+                                    height: Math.max(
+                                      220,
+                                      p.rows.length * 45 + 35,
+                                    ),
+                                  }}
+                                  role="img"
+                                  aria-label={`กราฟรายจ่ายสะสมแยกหมวด ${p.name}`}
+                                >
+                                  <ResponsiveContainer
+                                    width="100%"
+                                    height="100%"
+                                  >
+                                    <BarChart
+                                      data={p.rows}
+                                      layout="vertical"
+                                      margin={{ left: 0, right: 20 }}
+                                    >
+                                      <CartesianGrid
+                                        stroke="var(--border)"
+                                        horizontal={false}
+                                      />
+                                      <XAxis
+                                        type="number"
+                                        domain={result.categoryDomain}
+                                        tickFormatter={axisMoney}
+                                        tick={{ fontSize: 10 }}
+                                      />
+                                      <YAxis
+                                        type="category"
+                                        dataKey="label"
+                                        width={120}
+                                        tick={{
+                                          fontSize: 11,
+                                          fill: "var(--text)",
+                                        }}
+                                        tickFormatter={(v) =>
+                                          String(v).length > 21
+                                            ? String(v).slice(0, 21) + "…"
+                                            : String(v)
+                                        }
+                                      />
+                                      <Tooltip
+                                        {...tooltip}
+                                        labelFormatter={(_, payload) =>
+                                          payload?.[0]?.payload?.label || ""
+                                        }
+                                      />
+                                      <Bar
+                                        name="สุทธิสะสม"
+                                        dataKey="value"
+                                        fill={colors[p.key]}
+                                        radius={[0, 4, 4, 0]}
+                                        isAnimationActive={false}
+                                      />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              </div>
+                              <details className="comparison-category-values">
+                                <summary>ดูชื่อหมวดเต็มและยอดสะสม</summary>
+                                {p.rows.map((c) => (
+                                  <div key={c.key}>
+                                    <span>{c.label}</span>
+                                    <strong>{baht(c.value)}</strong>
+                                  </div>
+                                ))}
+                              </details>
+                            </>
+                          ) : (
+                            <p className="analytics-note">
+                              ยังไม่มีรายจ่ายที่จดในเดือนนี้
+                            </p>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="comparison-locked-note">
+                      <LockKeyhole size={18} />
+                      รอทั้งสองคนเปิดแชร์เพิ่มเติม จึงจะแสดงชื่อหมวดและยอดสะสม
+                    </div>
+                  )}
+                </section>
+                <section
+                  className="panel comparison-chart-panel"
+                  data-testid="comparison-wealth"
+                >
+                  <div className="section-heading">
+                    <div>
+                      <span className="comparison-order">04 · TOTAL MONEY</span>
+                      <h2>ความมั่งคั่งสุทธิ · เงินรวมที่บันทึก</h2>
+                      <p>
+                        ยอดปัจจุบัน ณ {data.money_as_of} · รวมเงินที่กันออมแล้ว
+                        ไม่ขึ้นกับเดือนที่เลือก
+                      </p>
+                    </div>
+                  </div>
+                  {data.details_ready ? (
+                    <>
+                      <div
+                        className="comparison-chart"
+                        role="img"
+                        aria-label="กราฟแท่งเงินรวมปัจจุบันรวมเงินออม Tape และ Pat"
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={result.wealth} barSize={80}>
+                            <CartesianGrid
+                              stroke="var(--border)"
+                              vertical={false}
+                            />
+                            <XAxis dataKey="name" />
+                            <YAxis tickFormatter={axisMoney} width={70} />
+                            <Tooltip {...tooltip} />
+                            <Bar
+                              name="เงินรวมรวมเงินออม"
+                              dataKey="value"
+                              radius={[7, 7, 0, 0]}
+                              isAnimationActive={false}
+                            >
+                              {result.wealth.map((p) => (
+                                <Cell key={p.key} fill={colors[p.key]} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
-                      <small>
-                        จาก {result.daily.length} วัน · เฉพาะวันที่มีรายจ่าย{" "}
-                        {p.spendingAverage === null
-                          ? "—"
-                          : baht(p.spendingAverage)}{" "}
-                        / วัน
-                      </small>
-                    </article>
-                  ))}
+                      <div className="comparison-inline-totals">
+                        {result.wealth.map((p) => (
+                          <span key={p.key}>
+                            {p.name} <strong>{baht(p.value)}</strong>
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="comparison-locked-note">
+                      <LockKeyhole size={18} />
+                      รอเปิดแชร์หมวดและเงินรวมจากทั้งสองบัญชี
+                    </div>
+                  )}
+                  <p className="analytics-note">
+                    เงินออมที่กันไว้รวมอยู่ในเงินทั้งหมดแล้ว จึงไม่บวกซ้ำ ·
+                    เป็นเงินตามบันทึกในแอป
+                    ไม่ใช่สินทรัพย์สุทธิหลังหักหนี้หรือทรัพย์สินที่ไม่ได้จด
+                  </p>
                 </section>
-                <div className="comparison-chart-grid">
-                  <section className="panel">
-                    <h2>จังหวะรายสัปดาห์</h2>
-                    <p className="analytics-note">
-                      จันทร์–อาทิตย์ ·
-                      สัปดาห์ต้น/ท้ายแสดงเฉพาะวันที่อยู่ในช่วงที่เลือก
-                    </p>
-                    <div
-                      className="comparison-chart"
-                      role="img"
-                      aria-label="กราฟเปรียบเทียบรายจ่ายรายสัปดาห์"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={result.weekly}>
-                          <CartesianGrid
-                            stroke="var(--border)"
-                            vertical={false}
-                          />
-                          <XAxis
-                            dataKey="label"
-                            tick={{ fill: "var(--muted)", fontSize: 11 }}
-                          />
-                          <YAxis
-                            tickFormatter={axisMoney}
-                            width={65}
-                            tick={{ fill: "var(--muted)", fontSize: 11 }}
-                          />
-                          <Tooltip
-                            {...tooltip}
-                            labelFormatter={(v) => `วันที่ ${v}`}
-                          />
-                          <Legend />
-                          <Bar
-                            name="Tape"
-                            dataKey="tape"
-                            fill={colors.tape}
-                            radius={[5, 5, 0, 0]}
-                            isAnimationActive={false}
-                          />
-                          <Bar
-                            name="Pat"
-                            dataKey="pat"
-                            fill={colors.pat}
-                            radius={[5, 5, 0, 0]}
-                            isAnimationActive={false}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </section>
-                  <section className="panel">
-                    <h2>เส้นทางรายจ่ายสะสม</h2>
-                    <p className="analytics-note">
-                      ยอดสะสมตั้งแต่ต้นเดือน หักเงินคืนตามวันที่ได้รับ
-                    </p>
-                    <div
-                      className="comparison-chart"
-                      role="img"
-                      aria-label="กราฟเส้นยอดรายจ่ายสะสม"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={result.daily}>
-                          <CartesianGrid
-                            stroke="var(--border)"
-                            vertical={false}
-                          />
-                          <XAxis
-                            dataKey="label"
-                            tick={{ fill: "var(--muted)", fontSize: 11 }}
-                          />
-                          <YAxis
-                            tickFormatter={axisMoney}
-                            width={65}
-                            tick={{ fill: "var(--muted)", fontSize: 11 }}
-                          />
-                          <Tooltip {...tooltip} />
-                          <Legend />
-                          <Line
-                            name="Tape"
-                            dataKey="tapeRunning"
-                            type="linear"
-                            stroke={colors.tape}
-                            strokeWidth={3}
-                            dot={false}
-                            isAnimationActive={false}
-                          />
-                          <Line
-                            name="Pat"
-                            dataKey="patRunning"
-                            type="linear"
-                            stroke={colors.pat}
-                            strokeWidth={3}
-                            dot={false}
-                            isAnimationActive={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </section>
-                </div>
-                <div className="comparison-chart-grid">
-                  <section className="panel">
-                    <h2>เงินไปกับอะไรบ้าง</h2>
-                    <p className="analytics-note">
-                      ค่ากิน เครื่องดื่ม และอื่น ๆ · ยอดสุทธิอาจติดลบจากเงินคืน
-                    </p>
-                    <div
-                      className="comparison-chart"
-                      role="img"
-                      aria-label="กราฟแยกค่ากิน เครื่องดื่ม และรายจ่ายอื่น"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={result.breakdown}>
-                          <CartesianGrid
-                            stroke="var(--border)"
-                            vertical={false}
-                          />
-                          <XAxis dataKey="name" />
-                          <YAxis tickFormatter={axisMoney} width={65} />
-                          <Tooltip {...tooltip} />
-                          <Legend />
-                          <Bar
-                            name="ค่ากิน"
-                            dataKey="food"
-                            fill="#da9c32"
-                            isAnimationActive={false}
-                          />
-                          <Bar
-                            name="เครื่องดื่ม"
-                            dataKey="drink"
-                            fill="#9874c5"
-                            isAnimationActive={false}
-                          />
-                          <Bar
-                            name="อื่น ๆ"
-                            dataKey="other"
-                            fill="#4b9c91"
-                            isAnimationActive={false}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </section>
-                  <section className="panel">
-                    <h2>ขึ้นลงในแต่ละวัน</h2>
-                    <p className="analytics-note">
-                      อีกมุมของยอดรายวัน ·
-                      ใช้เส้นตรงเพื่อไม่สร้างยอดระหว่างวันที่ไม่มีจริง
-                    </p>
-                    <div
-                      className="comparison-chart"
-                      role="img"
-                      aria-label="กราฟแนวโน้มรายจ่ายรายวัน"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={result.daily}>
-                          <CartesianGrid
-                            stroke="var(--border)"
-                            vertical={false}
-                          />
-                          <XAxis dataKey="label" />
-                          <YAxis tickFormatter={axisMoney} width={65} />
-                          <Tooltip {...tooltip} />
-                          <Legend />
-                          <Area
-                            name="Tape"
-                            type="linear"
-                            dataKey="tape"
-                            stroke={colors.tape}
-                            fill={colors.tape}
-                            fillOpacity={0.12}
-                            isAnimationActive={false}
-                          />
-                          <Area
-                            name="Pat"
-                            type="linear"
-                            dataKey="pat"
-                            stroke={colors.pat}
-                            fill={colors.pat}
-                            fillOpacity={0.1}
-                            isAnimationActive={false}
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </section>
-                </div>
                 <details className="panel comparison-table">
-                  <summary>ดูตัวเลขประกอบกราฟ</summary>
+                  <summary>ดูตัวเลขรายวันของเดือนที่เลือก</summary>
                   <div className="analytics-table-wrap">
                     <table>
                       <thead>
@@ -514,7 +562,7 @@ export default function Comparison({
                         </tr>
                       </thead>
                       <tbody>
-                        {result.daily.map((d) => (
+                        {result.monthly.daily.map((d) => (
                           <tr key={d.date}>
                             <td>{d.date}</td>
                             <td>{baht(d.tape)}</td>

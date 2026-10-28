@@ -1,5 +1,7 @@
 # Pat × Tape: graphs, themes and in-app reminders
 
+> Chart order and extra sharing scope are superseded by [the four-chart release](COMPARISON-FOUR-CHARTS.md). Theme and reminder behavior below is unchanged.
+
 ## Current screen flow
 
 Home remains focused on real money, budgets, recent entries and savings; the monthly forecast stays last. The cancelled recurring bill list, after-bills estimate and amount/category expense shortcuts are removed. Existing actual expenses, payment receipts and audit history are preserved. Old bill/template write commands now return `FEATURE_REMOVED`; their public read functions and table reads are revoked from client roles. Historical migrations stay immutable; cancelled-feature client code and its obsolete tests are removed. Reusable category pins are unchanged.

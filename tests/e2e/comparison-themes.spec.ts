@@ -90,6 +90,8 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
     version = "v1",
     reads = 0,
     failRead = false;
+  let detailsMine = false,
+    detailsPeer = false;
   const consents: boolean[] = [];
   const people = (
     [
@@ -114,6 +116,68 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
       };
     }),
   }));
+  const enriched = people.map((p, i) => ({
+    ...p,
+    recent_daily: Array.from({ length: 7 }, (_, j) => {
+      const d = new Date(today + "T12:00:00Z");
+      d.setUTCDate(d.getUTCDate() - 6 + j);
+      return {
+        date: d.toISOString().slice(0, 10),
+        net: String(100 + j * 10 + i * 20),
+        count: 1,
+      };
+    }),
+    categories:
+      i === 0
+        ? [
+            {
+              name: "อาหาร",
+              icon: "🍜",
+              net: "2000",
+              gross: "2000",
+              refund: "0",
+              count: 22,
+            },
+            {
+              name: "เครื่องดื่ม",
+              icon: "☕",
+              net: "500",
+              gross: "500",
+              refund: "0",
+              count: 7,
+            },
+          ]
+        : [
+            {
+              name: "อาหารและเครื่องดื่ม",
+              icon: "🍽️",
+              net: "3000",
+              gross: "3100",
+              refund: "100",
+              count: 20,
+            },
+            {
+              name: "เดินทาง",
+              icon: "🚆",
+              net: "700",
+              gross: "700",
+              refund: "0",
+              count: 5,
+            },
+          ],
+    total_money: i === 0 ? "12000" : "15000",
+  }));
+  const recentFrom = enriched[0].recent_daily[0].date;
+  await page.route(
+    "**/rest/v1/rpc/moneyspace_comparison_details",
+    async (r) => {
+      const body = r.request().postDataJSON();
+      expect(body.p_version).toBe(version);
+      detailsMine = body.p_enabled;
+      version = "details-" + String(detailsMine);
+      await r.fulfill({ json: { confirmed: true } });
+    },
+  );
   await page.route("**/rest/v1/rpc/moneyspace_comparison", async (r) => {
     reads++;
     if (failRead) {
@@ -125,7 +189,27 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
       mine_enabled: mine,
       peer_enabled: peer,
       version,
-      ...(mine && peer ? { month, through: today, people } : {}),
+      details_mine_enabled: detailsMine,
+      details_peer_enabled: detailsPeer,
+      details_ready: detailsMine && detailsPeer,
+      ...(mine && peer
+        ? {
+            month,
+            through: today,
+            recent_from: recentFrom,
+            recent_through: today,
+            money_as_of: today,
+            people: enriched.map((p) => {
+              if (detailsMine && detailsPeer) return p;
+              return {
+                key: p.key,
+                name: p.name,
+                daily: p.daily,
+                recent_daily: p.recent_daily,
+              };
+            }),
+          }
+        : {}),
     };
     await r.fulfill({ json: response });
   });
@@ -154,7 +238,7 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
   ).toBeVisible();
   await expect(
     page.getByRole("img", {
-      name: "กราฟเปรียบเทียบรายจ่ายรายวัน Tape และ Pat",
+      name: "กราฟรายจ่าย 7 วันล่าสุด Tape และ Pat",
       exact: true,
     }),
   ).toHaveCount(0);
@@ -170,25 +254,59 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
     .click();
   await expect(
     page.getByRole("img", {
-      name: "กราฟเปรียบเทียบรายจ่ายรายวัน Tape และ Pat",
+      name: "กราฟรายจ่าย 7 วันล่าสุด Tape และ Pat",
       exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("img", {
-      name: "กราฟเปรียบเทียบรายจ่ายรายสัปดาห์",
+      name: "กราฟเส้นรายจ่ายสะสมทั้งเดือน Tape และ Pat",
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.locator(".comparison-summary article")).toHaveCount(2);
-  await page.getByRole("button", { name: "ค่ากิน", exact: true }).click();
+  expect(
+    await page
+      .locator('[data-testid^="comparison-"]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute("data-testid"))),
+  ).toEqual([
+    "comparison-recent",
+    "comparison-month",
+    "comparison-categories",
+    "comparison-wealth",
+  ]);
   await expect(
-    page.getByRole("button", { name: "ค่ากิน", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "เครื่องดื่ม", exact: true }).click();
+    page.getByRole("img", {
+      name: "กราฟแท่งเงินรวมปัจจุบันรวมเงินออม Tape และ Pat",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await page
-    .getByRole("button", { name: "รายจ่ายทั้งหมด", exact: true })
+    .getByRole("button", { name: "แชร์หมวดและเงินรวมของฉัน", exact: true })
     .click();
+  await expect(
+    page.getByRole("button", { name: "หยุดแชร์หมวดและเงินรวม", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "กราฟรายจ่ายสะสมแยกหมวด Pat", exact: true }),
+  ).toHaveCount(0);
+  detailsPeer = true;
+  await page.getByRole("button", { name: "เดือนก่อน", exact: true }).click();
+  await expect(
+    page.getByRole("img", { name: "กราฟรายจ่ายสะสมแยกหมวด Pat", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "เดือนถัดไป", exact: true }).click();
+  await expect(
+    page.getByRole("img", {
+      name: "กราฟแท่งเงินรวมปัจจุบันรวมเงินออม Tape และ Pat",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByTestId("comparison-wealth")).toContainText(
+    "12,000.00",
+  );
+  await expect(page.getByTestId("comparison-categories")).toContainText(
+    "อาหารและเครื่องดื่ม",
+  );
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

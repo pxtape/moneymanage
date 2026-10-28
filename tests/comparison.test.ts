@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   comparisonSeries,
+  detailedComparison,
   type ComparisonData,
   type ComparisonDay,
 } from "../src/comparison";
@@ -132,5 +133,52 @@ describe("in-app reminders", () => {
         null,
       ),
     ).toHaveLength(0);
+  });
+});
+
+describe("the four requested comparison charts", () => {
+  const recent = Array.from({ length: 7 }, (_, i) => ({
+    date: `2026-10-${String(i + 27).padStart(2, "0")}`,
+    net: "1.10",
+    count: 1,
+  })).map((r, i) => ({
+    ...r,
+    date: new Date(Date.UTC(2026, 9, 27 + i)).toISOString().slice(0, 10),
+  }));
+  const richer: ComparisonData = {
+    ...data,
+    details_ready: true,
+    people: data.people!.map((p, i) => ({
+      ...p,
+      recent_daily: recent,
+      categories: [
+        {
+          name: i ? "อาหารและเครื่องดื่ม" : "อาหาร",
+          icon: "🍜",
+          net: "80.25",
+          gross: "100.25",
+          refund: "20",
+          count: 1,
+        },
+      ],
+      total_money: i ? "2000" : "1000",
+    })),
+  };
+  it("keeps seven current days across a month boundary and retains independent category names", () => {
+    const a = detailedComparison(richer);
+    expect(a.recent).toHaveLength(7);
+    expect(a.recent[6].date).toBe("2026-11-02");
+    expect(a.recentTape).toBe(770);
+    expect(a.categories.map((p) => p.rows[0].name)).toEqual([
+      "อาหาร",
+      "อาหารและเครื่องดื่ม",
+    ]);
+    expect(a.wealth.map((p) => p.value)).toEqual([100000, 200000]);
+    expect(a.categoryDomain).toEqual([0, 8025]);
+  });
+  it("does not build category or money graphs without extra consent", () => {
+    const a = detailedComparison({ ...richer, details_ready: false });
+    expect(a.categories).toEqual([]);
+    expect(a.wealth).toEqual([]);
   });
 });

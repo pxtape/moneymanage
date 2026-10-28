@@ -13,12 +13,28 @@ export interface ComparisonPerson {
   key: "tape" | "pat";
   name: string;
   daily: ComparisonDay[];
+  recent_daily?: { date: string; net: string; count: number }[];
+  categories?: {
+    name: string;
+    icon: string;
+    net: string;
+    gross: string;
+    refund: string;
+    count: number;
+  }[];
+  total_money?: string;
 }
 export interface ComparisonData {
   status: "unavailable" | "waiting" | "ready";
   mine_enabled?: boolean;
   peer_enabled?: boolean;
   version?: string;
+  details_mine_enabled?: boolean;
+  details_peer_enabled?: boolean;
+  details_ready?: boolean;
+  recent_from?: string;
+  recent_through?: string;
+  money_as_of?: string;
   month?: string;
   through?: string;
   people?: ComparisonPerson[];
@@ -112,4 +128,67 @@ export function comparisonSeries(
     };
   });
   return { daily, weekly: [...weeks.values()], summaries, breakdown };
+}
+
+export function detailedComparison(data: ComparisonData) {
+  const people = data.people || [];
+  if (people.length !== 2) throw Error("ข้อมูลไม่ครบ");
+  const tape = people.find((p) => p.key === "tape")!,
+    pat = people.find((p) => p.key === "pat")!;
+  const recent = tape.recent_daily || [];
+  const peerRecent = pat.recent_daily || [];
+  if (recent.length !== 7 || peerRecent.length !== 7)
+    throw Error("ข้อมูล 7 วันไม่ครบ");
+  const recentRows = recent.map((d, i) => {
+    if (d.date !== peerRecent[i].date) throw Error("วันที่ไม่ตรงกัน");
+    return {
+      date: d.date,
+      label: `${Number(d.date.slice(8))}/${Number(d.date.slice(5, 7))}`,
+      tape: decimalSatang(d.net),
+      pat: decimalSatang(peerRecent[i].net),
+    };
+  });
+  if (data.details_ready && people.some((p) => !Array.isArray(p.categories)))
+    throw Error("ไม่พบข้อมูลหมวด");
+  const categories = data.details_ready
+    ? people.map((p) => ({
+        key: p.key,
+        name: p.name,
+        rows: (p.categories || []).map((c, i) => ({
+          ...c,
+          key: String(i),
+          value: decimalSatang(c.net),
+          label: `${c.icon} ${c.name}`,
+        })),
+        total: (p.categories || []).reduce(
+          (s, c) => add(s, decimalSatang(c.net)),
+          0,
+        ),
+      }))
+    : [];
+  const wealth = data.details_ready
+    ? people.map((p) => {
+        if (p.total_money === undefined) throw Error("ไม่พบเงินรวม");
+        return {
+          key: p.key,
+          name: p.name,
+          value: decimalSatang(p.total_money),
+        };
+      })
+    : [];
+  const categoryDomain: [number, number] = [0, 0];
+  for (const p of categories)
+    for (const c of p.rows) {
+      categoryDomain[0] = Math.min(categoryDomain[0], c.value);
+      categoryDomain[1] = Math.max(categoryDomain[1], c.value);
+    }
+  if (categoryDomain[0] === categoryDomain[1]) categoryDomain[1] = 1;
+  return {
+    categoryDomain,
+    recent: recentRows,
+    recentTape: recentRows.reduce((s, d) => add(s, d.tape), 0),
+    recentPat: recentRows.reduce((s, d) => add(s, d.pat), 0),
+    categories,
+    wealth,
+  };
 }
