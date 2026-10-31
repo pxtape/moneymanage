@@ -1,16 +1,273 @@
-import {mockWeekly} from './support/weekly';
-import {test,expect} from '@playwright/test';
-test.beforeEach(async({page})=>{await mockWeekly(page)});
-const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-test('visual plans and goal management keep actual money separate and celebrate confirmed savings',async({page})=>{
- const id='00000000-0000-4000-8000-000000000456';const month=today.slice(0,7)+'-01';const jwt=[btoa(JSON.stringify({alg:'HS256',typ:'JWT'})),btoa(JSON.stringify({sub:id,exp:Math.floor(Date.now()/1000)+3600,aud:'authenticated',role:'authenticated'})),'mock'].join('.');
- await page.addInitScript(({id,jwt})=>localStorage.setItem('sb-mfdttuvsvplbrfmjxxqs-auth-token',JSON.stringify({access_token:jwt,refresh_token:'mock',token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:{id,aud:'authenticated',role:'authenticated',email:'tape@moneyspace.invalid',app_metadata:{},user_metadata:{},created_at:new Date().toISOString()}})),{id,jwt});
- const state={month,current_period_exists:true,period_exists:true,accounts:[{id:'account',name:'เงินรวม',kind:'bank',balance:'29000',opening_balance:'0'}],categories:[{id:'food',name:'อาหาร',icon:'🍜',tag:'need',envelope:'food'}],envelopes:[{id:'food',name:'อาหาร',rollover:'none',allocated:'6000',carried:'0',spent:'1000',remaining:'5000'},{id:'drink',name:'เครื่องดื่ม',rollover:'none',allocated:'2000',carried:'0',spent:'0',remaining:'2000'},{id:'bills',name:'ค่าน้ำ ค่าไฟ',rollover:'none',allocated:'2000',carried:'0',spent:'0',remaining:'2000'}],goals:[{id:'goal',name:'ทริปพักผ่อน',target:'2000',saved:'1000',updated_at:today+'T00:00:00Z',target_date:null}],contributions:[{id:'contribution',goal_id:'goal',goal_name_snapshot:'ทริปพักผ่อน',account_id:'account',amount:'1000'}],income:'30000',expenses:'1000',cash:'29000',savings:'1000',savings_change:'1000',transactions:[],transaction_count:1};
- await page.route('**/rest/v1/profiles*',r=>r.fulfill({json:{display_name:'tape',onboarding_completed_at:today+'T00:00:00Z'}}));await page.route('**/rest/v1/rpc/moneyspace_snapshot',r=>r.fulfill({json:state}));const keys:string[]=[];let reject=true;
- await page.route('**/rest/v1/rpc/moneyspace_write',async route=>{const b=route.request().postDataJSON();if(b.p_action==='update_goal'){keys.push(b.p_key);expect(b.p_data.version).toBe(state.goals[0].updated_at);if(reject){await route.fulfill({status:503,json:{message:'offline'}});return}state.goals[0]={...state.goals[0],name:b.p_data.name,target:b.p_data.amount,updated_at:today+'T01:00:00Z'}}else if(b.p_action==='earmark_goal'){await new Promise(r=>setTimeout(r,500));expect(b.p_data.amount).toBe('1500.00');state.goals[0].saved='2500';state.goals[0].updated_at=today+'T02:00:00Z';state.savings='2500';state.savings_change='2500'}else if(b.p_action==='delete_goal'){expect(b.p_data.version).toBe(state.goals[0].updated_at);state.goals=[];state.contributions=[];state.savings='0';state.savings_change='0'}else throw new Error('Unexpected action '+b.p_action);await route.fulfill({json:{confirmed:true,id:'goal',action:b.p_action}})});
- await page.goto('/');await expect(page.getByTestId('actual-income')).toContainText('30,000.00');await expect(page.getByTestId('actual-cash')).toContainText('29,000.00');await expect(page.getByRole('button',{name:'วางแผนแบบง่าย',exact:true})).toHaveCount(0);await expect(page.getByRole('progressbar',{name:'งบคงเหลือ อาหาร',exact:true})).toHaveAttribute('aria-valuenow','83');await expect(page.locator('.pocket-progress').filter({hasText:'อาหาร'})).toContainText('เหลือ 83%');await expect(page.locator('.pocket-progress').filter({hasText:'อาหาร'})).toContainText('/ ฿6,000.00');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`artifacts/${test.info().project.name}-visual-home.png`,fullPage:true});
- await page.getByRole('button',{name:'งบรายเดือน',exact:true}).click();await expect(page.getByTestId('planned-budget-total')).toContainText('10,000.00');const food=page.locator('.planned-budget-legend').getByRole('button').filter({hasText:'อาหาร'});await expect(food).toContainText('60.0%');await food.click();await expect(page.getByTestId('planned-budget-total')).toContainText('6,000.00');await food.click();await expect(page.getByTestId('planned-budget-total')).toContainText('10,000.00');await expect(page.locator('.planned-donut .recharts-sector').first()).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:`artifacts/${test.info().project.name}-planned-budget.png`,fullPage:true});
- await page.getByRole('button',{name:'ภาพรวม',exact:true}).click();await page.getByRole('button',{name:'แก้ไขเป้าหมาย ทริปพักผ่อน',exact:true}).click();await page.getByLabel('ชื่อเป้าหมาย',{exact:true}).fill('ทริปทะเล');await page.getByLabel('ยอดเป้าหมาย (บาท)').fill('2500');await page.getByRole('button',{name:'บันทึกเป้าหมาย',exact:true}).click();await expect(page.getByRole('alert')).toContainText('ยังไม่ได้ยืนยัน');reject=false;await page.getByRole('button',{name:'บันทึกเป้าหมาย',exact:true}).click();await expect.poll(()=>keys.length).toBe(2);expect(keys[0]).toBe(keys[1]);await expect(page.getByRole('progressbar',{name:'เป้าหมาย ทริปทะเล',exact:true})).toHaveAttribute('aria-valuenow','40');await expect(page.getByTestId('actual-cash')).toContainText('29,000.00');
- await page.locator('.savings-garden').getByRole('button',{name:'กันเงินออม',exact:true}).click();await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('1500');await page.getByRole('button',{name:'บันทึก',exact:true}).click();await expect(page.locator('.savings-celebration')).toHaveCount(0);await expect(page.locator('.savings-celebration')).toContainText('ถึงเป้าหมายแล้ว');await expect(page.getByRole('progressbar',{name:'เป้าหมาย ทริปทะเล',exact:true})).toHaveAttribute('aria-valuenow','100');await page.screenshot({path:`artifacts/${test.info().project.name}-savings-celebration.png`,fullPage:true});await page.getByRole('button',{name:'ปิดข้อความฉลอง'}).click();
- await page.getByRole('button',{name:'แก้ไขเป้าหมาย ทริปทะเล',exact:true}).click();await page.getByRole('button',{name:'ลบเป้าหมายนี้',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('฿2,500.00');await expect(page.getByRole('dialog')).toContainText('เงินรวมและรายจ่ายไม่เปลี่ยน');await page.getByRole('button',{name:'ยืนยันลบเป้าหมาย',exact:true}).click();await expect(page.locator('.garden-goal')).toHaveCount(0);await expect(page.getByTestId('actual-cash')).toContainText('29,000.00');await expect(page.getByTestId('actual-expenses')).toContainText('1,000.00');
+import { mockWeekly } from "./support/weekly";
+import { mockHome } from "./support/home";
+import { test, expect } from "@playwright/test";
+test.beforeEach(async ({ page }) => {
+  await mockWeekly(page);
+});
+const today = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Bangkok",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
+test("visual plans and goal management keep actual money separate and celebrate confirmed savings", async ({
+  page,
+}) => {
+  const id = "00000000-0000-4000-8000-000000000456";
+  const month = today.slice(0, 7) + "-01";
+  const jwt = [
+    btoa(JSON.stringify({ alg: "HS256", typ: "JWT" })),
+    btoa(
+      JSON.stringify({
+        sub: id,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        aud: "authenticated",
+        role: "authenticated",
+      }),
+    ),
+    "mock",
+  ].join(".");
+  await page.addInitScript(
+    ({ id, jwt }) =>
+      localStorage.setItem(
+        "sb-mfdttuvsvplbrfmjxxqs-auth-token",
+        JSON.stringify({
+          access_token: jwt,
+          refresh_token: "mock",
+          token_type: "bearer",
+          expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: {
+            id,
+            aud: "authenticated",
+            role: "authenticated",
+            email: "tape@moneyspace.invalid",
+            app_metadata: {},
+            user_metadata: {},
+            created_at: new Date().toISOString(),
+          },
+        }),
+      ),
+    { id, jwt },
+  );
+  const state = {
+    month,
+    current_period_exists: true,
+    period_exists: true,
+    accounts: [
+      {
+        id: "account",
+        name: "เงินรวม",
+        kind: "bank",
+        balance: "29000",
+        opening_balance: "0",
+      },
+    ],
+    categories: [
+      { id: "food", name: "อาหาร", icon: "🍜", tag: "need", envelope: "food" },
+    ],
+    envelopes: [
+      {
+        id: "food",
+        name: "อาหาร",
+        rollover: "none",
+        allocated: "6000",
+        carried: "0",
+        spent: "1000",
+        remaining: "5000",
+      },
+      {
+        id: "drink",
+        name: "เครื่องดื่ม",
+        rollover: "none",
+        allocated: "2000",
+        carried: "0",
+        spent: "0",
+        remaining: "2000",
+      },
+      {
+        id: "bills",
+        name: "ค่าน้ำ ค่าไฟ",
+        rollover: "none",
+        allocated: "2000",
+        carried: "0",
+        spent: "0",
+        remaining: "2000",
+      },
+    ],
+    goals: [
+      {
+        id: "goal",
+        name: "ทริปพักผ่อน",
+        target: "2000",
+        saved: "1000",
+        updated_at: today + "T00:00:00Z",
+        target_date: null,
+      },
+    ],
+    contributions: [
+      {
+        id: "contribution",
+        goal_id: "goal",
+        goal_name_snapshot: "ทริปพักผ่อน",
+        account_id: "account",
+        amount: "1000",
+      },
+    ],
+    income: "30000",
+    expenses: "1000",
+    cash: "29000",
+    savings: "1000",
+    savings_change: "1000",
+    transactions: [],
+    transaction_count: 1,
+  };
+  await page.route("**/rest/v1/profiles*", (r) =>
+    r.fulfill({
+      json: {
+        display_name: "tape",
+        onboarding_completed_at: today + "T00:00:00Z",
+      },
+    }),
+  );
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (r) =>
+    r.fulfill({ json: state }),
+  );
+  await mockHome(page, () => state);
+  const keys: string[] = [];
+  let reject = true;
+  await page.route("**/rest/v1/rpc/moneyspace_write", async (route) => {
+    const b = route.request().postDataJSON();
+    if (b.p_action === "update_goal") {
+      keys.push(b.p_key);
+      expect(b.p_data.version).toBe(state.goals[0].updated_at);
+      if (reject) {
+        await route.fulfill({ status: 503, json: { message: "offline" } });
+        return;
+      }
+      state.goals[0] = {
+        ...state.goals[0],
+        name: b.p_data.name,
+        target: b.p_data.amount,
+        updated_at: today + "T01:00:00Z",
+      };
+    } else if (b.p_action === "earmark_goal") {
+      await new Promise((r) => setTimeout(r, 500));
+      expect(b.p_data.amount).toBe("1500.00");
+      state.goals[0].saved = "2500";
+      state.goals[0].updated_at = today + "T02:00:00Z";
+      state.savings = "2500";
+      state.savings_change = "2500";
+    } else if (b.p_action === "delete_goal") {
+      expect(b.p_data.version).toBe(state.goals[0].updated_at);
+      state.goals = [];
+      state.contributions = [];
+      state.savings = "0";
+      state.savings_change = "0";
+    } else throw new Error("Unexpected action " + b.p_action);
+    await route.fulfill({
+      json: { confirmed: true, id: "goal", action: b.p_action },
+    });
+  });
+  await page.goto("/");
+  await expect(page.getByTestId("actual-income")).toContainText("30,000.00");
+  await expect(page.getByTestId("actual-cash")).toContainText("29,000.00");
+  await expect(
+    page.getByRole("button", { name: "วางแผนแบบง่าย", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("tab", { name: "รายเดือน", exact: true }).click();
+  await expect(
+    page.locator(".home-budget-list article").filter({ hasText: "อาหาร" }),
+  ).toContainText("เหลือ ฿5,000.00");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}-visual-home.png`,
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
+  await expect(page.getByTestId("planned-budget-total")).toContainText(
+    "10,000.00",
+  );
+  const food = page
+    .locator(".planned-budget-legend")
+    .getByRole("button")
+    .filter({ hasText: "อาหาร" });
+  await expect(food).toContainText("60.0%");
+  await food.click();
+  await expect(page.getByTestId("planned-budget-total")).toContainText(
+    "6,000.00",
+  );
+  await food.click();
+  await expect(page.getByTestId("planned-budget-total")).toContainText(
+    "10,000.00",
+  );
+  await expect(
+    page.locator(".planned-donut .recharts-sector").first(),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}-planned-budget.png`,
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "แก้ไขเป้าหมาย ทริปพักผ่อน", exact: true })
+    .click();
+  await page.getByLabel("ชื่อเป้าหมาย", { exact: true }).fill("ทริปทะเล");
+  await page.getByLabel("ยอดเป้าหมาย (บาท)").fill("2500");
+  await page
+    .getByRole("button", { name: "บันทึกเป้าหมาย", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("ยังไม่ได้ยืนยัน");
+  reject = false;
+  await page
+    .getByRole("button", { name: "บันทึกเป้าหมาย", exact: true })
+    .click();
+  await expect.poll(() => keys.length).toBe(2);
+  expect(keys[0]).toBe(keys[1]);
+  await expect(
+    page.getByRole("progressbar", { name: "เป้าหมาย ทริปทะเล", exact: true }),
+  ).toHaveAttribute("aria-valuenow", "40");
+  await expect(page.getByTestId("actual-cash")).toContainText("29,000.00");
+  await page
+    .locator(".savings-garden")
+    .getByRole("button", { name: "กันเงินออม", exact: true })
+    .click();
+  await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("1500");
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+  await expect(page.locator(".savings-celebration")).toHaveCount(0);
+  await expect(page.locator(".savings-celebration")).toContainText(
+    "ถึงเป้าหมายแล้ว",
+  );
+  await expect(
+    page.getByRole("progressbar", { name: "เป้าหมาย ทริปทะเล", exact: true }),
+  ).toHaveAttribute("aria-valuenow", "100");
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}-savings-celebration.png`,
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "ปิดข้อความฉลอง" }).click();
+  await page
+    .getByRole("button", { name: "แก้ไขเป้าหมาย ทริปทะเล", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "ลบเป้าหมายนี้", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText("฿2,500.00");
+  await expect(page.getByRole("dialog")).toContainText(
+    "เงินรวมและรายจ่ายไม่เปลี่ยน",
+  );
+  await page
+    .getByRole("button", { name: "ยืนยันลบเป้าหมาย", exact: true })
+    .click();
+  await expect(page.locator(".garden-goal")).toHaveCount(0);
+  await expect(page.getByTestId("actual-cash")).toContainText("29,000.00");
+  await expect(page.getByTestId("actual-expenses")).toContainText("1,000.00");
 });

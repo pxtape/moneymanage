@@ -1,23 +1,326 @@
-import {mockWeekly} from './support/weekly';
-import {test,expect,type Page} from '@playwright/test';
-test.beforeEach(async({page})=>{await mockWeekly(page)});
-async function openDemo(page:Page){await page.goto('/');await page.getByRole('button',{name:'ดูข้อมูลตัวอย่าง',exact:true}).click()}
-test('quick expense needs only amount and category',async({page})=>{await openDemo(page);await expect(page.getByRole('heading',{name:'สวัสดี, พิมพ์ชนก'})).toBeVisible();await page.getByRole('button',{name:'เพิ่มรายการ',exact:true}).first().click();await expect(page.getByLabel('ชื่อรายการ / ร้านค้า (ไม่จำเป็น)')).not.toBeVisible();await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('120.50');await page.getByRole('button',{name:'🍜 อาหาร',exact:true}).click();await page.screenshot({path:`artifacts/${test.info().project.name}-quick-entry.png`,fullPage:true});await page.getByRole('button',{name:'จดรายการตัวอย่าง',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'ยังไม่ได้ซิงก์'})).toBeVisible();await expect(page.getByText('อาหาร',{exact:true}).first()).toBeVisible();await expect(page.locator('.main-amount')).toContainText('82,279.50');await page.waitForTimeout(1800);await page.screenshot({path:`artifacts/${test.info().project.name}.png`,fullPage:true})});
-test('custom category can be reused without typing a transaction title',async({page})=>{await openDemo(page);await page.getByRole('button',{name:'เพิ่มรายการ',exact:true}).first().click();await page.getByRole('button',{name:'เพิ่มหมวด',exact:true}).click();await page.getByLabel('ชื่อหมวดใหม่').fill('สัตว์เลี้ยง');await page.getByRole('button',{name:'เพิ่มไว้ใช้ซ้ำ'}).click();await expect(page.getByRole('button',{name:'✳️ สัตว์เลี้ยง',exact:true})).toHaveAttribute('aria-pressed','true');await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('50');await page.getByRole('button',{name:'จดรายการตัวอย่าง',exact:true}).click();await page.getByRole('button',{name:'เพิ่มรายการ',exact:true}).first().click();await expect(page.getByRole('button',{name:'✳️ สัตว์เลี้ยง',exact:true})).toHaveAttribute('aria-pressed','true');await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('25');await page.getByRole('button',{name:'จดรายการตัวอย่าง',exact:true}).click();await expect(page.locator('.main-amount')).toContainText('82,325.00')});
-test('validates missing category, bad amounts, and supports optional detail',async({page})=>{await openDemo(page);await page.getByRole('button',{name:'เพิ่มรายการ',exact:true}).first().click();await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('10');await page.getByRole('button',{name:'จดรายการตัวอย่าง',exact:true}).click();await expect(page.getByRole('alert')).toContainText('เลือกหมวด');await page.getByRole('button',{name:'🍜 อาหาร',exact:true}).click();await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('10.001');await page.getByRole('button',{name:'จดรายการตัวอย่าง',exact:true}).click();await expect(page.getByRole('alert')).toContainText('ทศนิยมไม่เกิน 2');await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('10');await page.getByRole('button',{name:'เพิ่มเติม เฉพาะเมื่ออยากจด'}).click();await page.getByLabel('ชื่อรายการ / ร้านค้า (ไม่จำเป็น)').fill('ร้านที่อยากจำ');await page.getByRole('button',{name:'จดรายการตัวอย่าง',exact:true}).click();await expect(page.getByText('ร้านที่อยากจำ',{exact:true})).toBeVisible()});
-test('username login has no signup or email flow',async({page})=>{await page.route('**/auth/v1/token?**',route=>{expect(route.request().postDataJSON().email).toBe('tape@moneyspace.invalid');return route.fulfill({status:400,json:{error:'invalid_grant',error_description:'Invalid login credentials'}})});await page.goto('/');await expect(page.getByRole('heading',{name:'พื้นที่การเงินส่วนตัว'})).toBeVisible();await expect(page.getByLabel('อีเมล',{exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'สร้างบัญชี',exact:true})).toHaveCount(0);await page.getByLabel('ชื่อผู้ใช้',{exact:true}).fill('TAPE');await page.getByLabel('รหัสผ่าน',{exact:true}).fill('wrong-password');await page.getByRole('button',{name:'เข้าสู่ระบบ',exact:true}).click();await expect(page.getByRole('alert')).toContainText('เข้าสู่ระบบไม่สำเร็จ');await page.screenshot({path:`artifacts/${test.info().project.name}-auth.png`,fullPage:true});await page.getByRole('button',{name:'ดูข้อมูลตัวอย่าง',exact:true}).click();await expect(page.getByRole('heading',{name:'สวัสดี, พิมพ์ชนก'})).toBeVisible()});
-test('mocked authenticated onboarding waits for server and persistent category confirmation',async({page})=>{
- const id='00000000-0000-4000-8000-000000000123';
- const payload={sub:id,exp:Math.floor(Date.now()/1000)+3600,iat:Math.floor(Date.now()/1000),aud:'authenticated',role:'authenticated'};
- const jwt=[btoa(JSON.stringify({alg:'HS256',typ:'JWT'})),btoa(JSON.stringify(payload)),'mock-signature'].join('.');
- await page.addInitScript(({id,jwt})=>localStorage.setItem('sb-mfdttuvsvplbrfmjxxqs-auth-token',JSON.stringify({access_token:jwt,refresh_token:'mock-refresh-token',token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:{id,aud:'authenticated',role:'authenticated',email:'mock@example.invalid',app_metadata:{},user_metadata:{},created_at:new Date().toISOString()}})),{id,jwt});
- let completed=false;let rejectCategory=true;
- await page.route('**/rest/v1/profiles*',route=>route.fulfill({json:completed?{display_name:'ทดสอบ',onboarding_completed_at:'2026-10-20T00:00:00Z'}:null}));
- await page.route('**/rest/v1/rpc/moneyspace_snapshot',route=>route.fulfill({json:{month:route.request().postDataJSON().p_month,period_exists:true,accounts:[{id:'test-account',name:'บัญชีใช้จ่าย',kind:'bank',balance:'1000.25',opening_balance:'1000.25'}],categories:[],envelopes:[],goals:[],contributions:[],income:'0',expenses:'0',cash:'1000.25',savings:'0',reserved_current:'0',transactions:[],transaction_count:0}}));
- await page.route('**/rest/v1/accounts*',route=>route.fulfill({json:completed?[{id:'test-account',name:'บัญชีใช้จ่าย',opening_balance:'1000.25'}]:[]}));
- await page.route('**/rest/v1/categories*',route=>{if(route.request().method()==='POST'){if(rejectCategory)return route.fulfill({status:503,json:{message:'offline'}});const body=route.request().postDataJSON();return route.fulfill({json:{id:'new-category',name:body.name,icon:'✳️',default_tag:'need'}})}return route.fulfill({json:[]})});
- await page.route('**/rest/v1/rpc/complete_onboarding',async route=>{expect(route.request().postDataJSON().p_opening_balance).toBe('1000.25');await new Promise(resolve=>setTimeout(resolve,300));completed=true;await route.fulfill({json:null})});
- await page.goto('/');await expect(page.getByRole('heading',{name:'เริ่มต้นแบบเบา ๆ'})).toBeVisible();await page.getByLabel('ชื่อที่อยากให้เราเรียก').fill('ทดสอบ');await page.getByLabel('ยอดเงินเริ่มต้น (บาท)').fill('1.001');await page.getByRole('button',{name:'สร้างพื้นที่ของฉัน'}).click();await expect(page.getByRole('alert')).toContainText('ทศนิยมไม่เกิน 2');await expect(page.getByLabel('ชื่อที่อยากให้เราเรียก')).toHaveValue('ทดสอบ');await page.getByLabel('ยอดเงินเริ่มต้น (บาท)').fill('1000.25');await page.getByRole('button',{name:'สร้างพื้นที่ของฉัน'}).click();await expect(page.getByRole('heading',{name:'สวัสดี, ทดสอบ'})).toBeVisible();await expect(page.getByTestId('actual-cash')).toContainText('1,000.25');await page.getByRole('button',{name:'ทดสอบ',exact:true}).click();
- await page.getByLabel('เพิ่มหมวดไว้ใช้ซ้ำ').fill('สัตว์เลี้ยง');await page.getByRole('button',{name:'เพิ่มหมวด',exact:true}).click();await expect(page.getByRole('alert')).toContainText('ยังไม่ได้ยืนยัน');await expect(page.locator('.category-mappings')).not.toContainText('สัตว์เลี้ยง');rejectCategory=false;await page.getByRole('button',{name:'เพิ่มหมวด',exact:true}).click();await expect(page.getByRole('status')).toContainText('บันทึกหมวดใน Supabase แล้ว');await expect(page.locator('.category-mappings')).toContainText('สัตว์เลี้ยง');await page.screenshot({path:`artifacts/${test.info().project.name}-account.png`,fullPage:true});
+import { mockWeekly } from "./support/weekly";
+import { test, expect, type Page } from "@playwright/test";
+test.beforeEach(async ({ page }) => {
+  await mockWeekly(page);
 });
-
+async function openDemo(page: Page) {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "ดูข้อมูลตัวอย่าง", exact: true })
+    .click();
+}
+test("quick expense needs only amount and category", async ({ page }) => {
+  await openDemo(page);
+  await expect(
+    page.getByRole("heading", { name: "สวัสดี, พิมพ์ชนก" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "เพิ่มรายการ", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByLabel("ชื่อรายการ / ร้านค้า (ไม่จำเป็น)"),
+  ).not.toBeVisible();
+  await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("120.50");
+  await page.getByRole("button", { name: "🍜 อาหาร", exact: true }).click();
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}-quick-entry.png`,
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "ยังไม่ได้ซิงก์" }),
+  ).toBeVisible();
+  await expect(page.getByText("อาหาร", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".main-amount")).toContainText("82,279.50");
+  await page.waitForTimeout(1800);
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}.png`,
+    fullPage: true,
+  });
+});
+test("custom category can be reused without typing a transaction title", async ({
+  page,
+}) => {
+  await openDemo(page);
+  await page
+    .getByRole("button", { name: "เพิ่มรายการ", exact: true })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "เพิ่มหมวด", exact: true }).click();
+  await page.getByLabel("ชื่อหมวดใหม่").fill("สัตว์เลี้ยง");
+  await page.getByRole("button", { name: "เพิ่มไว้ใช้ซ้ำ" }).click();
+  await expect(
+    page.getByRole("button", { name: "✳️ สัตว์เลี้ยง", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("50");
+  await page
+    .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "เพิ่มรายการ", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("button", { name: "✳️ สัตว์เลี้ยง", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("25");
+  await page
+    .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
+    .click();
+  await expect(page.locator(".main-amount")).toContainText("82,325.00");
+});
+test("validates missing category, bad amounts, and supports optional detail", async ({
+  page,
+}) => {
+  await openDemo(page);
+  await page
+    .getByRole("button", { name: "เพิ่มรายการ", exact: true })
+    .first()
+    .click();
+  await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("10");
+  await page
+    .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("เลือกหมวด");
+  await page.getByRole("button", { name: "🍜 อาหาร", exact: true }).click();
+  await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("10.001");
+  await page
+    .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("ทศนิยมไม่เกิน 2");
+  await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("10");
+  await page
+    .getByRole("button", { name: "เพิ่มเติม เฉพาะเมื่ออยากจด" })
+    .click();
+  await page
+    .getByLabel("ชื่อรายการ / ร้านค้า (ไม่จำเป็น)")
+    .fill("ร้านที่อยากจำ");
+  await page
+    .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
+    .click();
+  await expect(page.getByText("ร้านที่อยากจำ", { exact: true })).toBeVisible();
+});
+test("username login has no signup or email flow", async ({ page }) => {
+  await page.route("**/auth/v1/token?**", (route) => {
+    expect(route.request().postDataJSON().email).toBe(
+      "tape@moneyspace.invalid",
+    );
+    return route.fulfill({
+      status: 400,
+      json: {
+        error: "invalid_grant",
+        error_description: "Invalid login credentials",
+      },
+    });
+  });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "พื้นที่การเงินส่วนตัว" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("อีเมล", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "สร้างบัญชี", exact: true }),
+  ).toHaveCount(0);
+  await page.getByLabel("ชื่อผู้ใช้", { exact: true }).fill("TAPE");
+  await page.getByLabel("รหัสผ่าน", { exact: true }).fill("wrong-password");
+  await page.getByRole("button", { name: "เข้าสู่ระบบ", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("เข้าสู่ระบบไม่สำเร็จ");
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}-auth.png`,
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "ดูข้อมูลตัวอย่าง", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "สวัสดี, พิมพ์ชนก" }),
+  ).toBeVisible();
+});
+test("mocked authenticated onboarding waits for server and persistent category confirmation", async ({
+  page,
+}) => {
+  const id = "00000000-0000-4000-8000-000000000123";
+  const payload = {
+    sub: id,
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+    aud: "authenticated",
+    role: "authenticated",
+  };
+  const jwt = [
+    btoa(JSON.stringify({ alg: "HS256", typ: "JWT" })),
+    btoa(JSON.stringify(payload)),
+    "mock-signature",
+  ].join(".");
+  await page.addInitScript(
+    ({ id, jwt }) =>
+      localStorage.setItem(
+        "sb-mfdttuvsvplbrfmjxxqs-auth-token",
+        JSON.stringify({
+          access_token: jwt,
+          refresh_token: "mock-refresh-token",
+          token_type: "bearer",
+          expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: {
+            id,
+            aud: "authenticated",
+            role: "authenticated",
+            email: "mock@example.invalid",
+            app_metadata: {},
+            user_metadata: {},
+            created_at: new Date().toISOString(),
+          },
+        }),
+      ),
+    { id, jwt },
+  );
+  let completed = false;
+  let rejectCategory = true;
+  await page.route("**/rest/v1/profiles*", (route) =>
+    route.fulfill({
+      json: completed
+        ? {
+            display_name: "ทดสอบ",
+            onboarding_completed_at: "2026-10-20T00:00:00Z",
+          }
+        : null,
+    }),
+  );
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (route) =>
+    route.fulfill({
+      json: {
+        month: route.request().postDataJSON().p_month,
+        period_exists: true,
+        accounts: [
+          {
+            id: "test-account",
+            name: "บัญชีใช้จ่าย",
+            kind: "bank",
+            balance: "1000.25",
+            opening_balance: "1000.25",
+          },
+        ],
+        categories: [],
+        envelopes: [],
+        goals: [],
+        contributions: [],
+        income: "0",
+        expenses: "0",
+        cash: "1000.25",
+        savings: "0",
+        reserved_current: "0",
+        transactions: [],
+        transaction_count: 0,
+      },
+    }),
+  );
+  await page.route("**/rest/v1/rpc/moneyspace_home", (route) => {
+    const date = route.request().postDataJSON().p_date;
+    return route.fulfill({
+      json: {
+        selected_date: date,
+        cycle_day: 1,
+        cycle_from: date.slice(0, 7) + "-01",
+        cycle_through: date.slice(0, 7) + "-31",
+        money: { total: "1000.25", savings: "0", spendable: "1000.25" },
+        cycle: {
+          income: "0",
+          expenses: "0",
+          budget_total: "0",
+          budget_spent: "0",
+        },
+        daily: {
+          target: "0",
+          expenses: "0",
+          transactions: [],
+          categories: [],
+          types: [],
+        },
+        weekly: {
+          from: date,
+          through: date,
+          previous_from: date,
+          previous_through: date,
+          days: Array.from({ length: 7 }, () => ({
+            date,
+            current: "0",
+            previous: "0",
+          })),
+        },
+        monthly: { budgets: [] },
+        yearly: [],
+      },
+    });
+  });
+  await page.route("**/rest/v1/accounts*", (route) =>
+    route.fulfill({
+      json: completed
+        ? [
+            {
+              id: "test-account",
+              name: "บัญชีใช้จ่าย",
+              opening_balance: "1000.25",
+            },
+          ]
+        : [],
+    }),
+  );
+  await page.route("**/rest/v1/categories*", (route) => {
+    if (route.request().method() === "POST") {
+      if (rejectCategory)
+        return route.fulfill({ status: 503, json: { message: "offline" } });
+      const body = route.request().postDataJSON();
+      return route.fulfill({
+        json: {
+          id: "new-category",
+          name: body.name,
+          icon: "✳️",
+          default_tag: "need",
+        },
+      });
+    }
+    return route.fulfill({ json: [] });
+  });
+  await page.route("**/rest/v1/rpc/complete_onboarding", async (route) => {
+    expect(route.request().postDataJSON().p_opening_balance).toBe("1000.25");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    completed = true;
+    await route.fulfill({ json: null });
+  });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "เริ่มต้นแบบเบา ๆ" }),
+  ).toBeVisible();
+  await page.getByLabel("ชื่อที่อยากให้เราเรียก").fill("ทดสอบ");
+  await page.getByLabel("ยอดเงินเริ่มต้น (บาท)").fill("1.001");
+  await page.getByRole("button", { name: "สร้างพื้นที่ของฉัน" }).click();
+  await expect(page.getByRole("alert")).toContainText("ทศนิยมไม่เกิน 2");
+  await expect(page.getByLabel("ชื่อที่อยากให้เราเรียก")).toHaveValue("ทดสอบ");
+  await page.getByLabel("ยอดเงินเริ่มต้น (บาท)").fill("1000.25");
+  await page.getByRole("button", { name: "สร้างพื้นที่ของฉัน" }).click();
+  await expect(
+    page.getByRole("heading", { name: "สวัสดี, ทดสอบ" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("actual-cash")).toContainText("1,000.25");
+  await page.getByRole("button", { name: "ทดสอบ", exact: true }).click();
+  await page.getByLabel("เพิ่มหมวดไว้ใช้ซ้ำ").fill("สัตว์เลี้ยง");
+  await page.getByRole("button", { name: "เพิ่มหมวด", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("ยังไม่ได้ยืนยัน");
+  await expect(page.locator(".category-mappings")).not.toContainText(
+    "สัตว์เลี้ยง",
+  );
+  rejectCategory = false;
+  await page.getByRole("button", { name: "เพิ่มหมวด", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "บันทึกหมวดใน Supabase แล้ว",
+  );
+  await expect(page.locator(".category-mappings")).toContainText("สัตว์เลี้ยง");
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}-account.png`,
+    fullPage: true,
+  });
+});

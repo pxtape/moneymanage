@@ -87,7 +87,7 @@ Latest interface review: [Visual budgets and editable goals](docs/VISUAL-BUDGETS
 
 Monthly cashflow planning replaces the retired payday option. Home and Budgets now lead with expected income sources, planned expense pockets, monthly savings intent and the resulting reserve or deficit. These forecasts never change actual cash, transactions or accumulated savings. Plans are stored separately per month, with optional explicit copying from the latest earlier plan. See [monthly planning rules and acceptance](docs/MONTHLY-CASHFLOW-PLAN.md).
 
-Screen roles and hierarchy: Home leads with actual money and daily budget use, with the monthly plan last; Monthly Budgets leads with planning. Category defaults support Need/Want edits for future entries without rewriting history. See [screen flow review and acceptance](docs/SCREEN-FLOW-REVIEW.md).
+Screen roles and hierarchy: Home is now date-led, with daily, weekly, custom-cycle monthly and yearly views; Monthly Budgets remains the place to edit plans and savings goals. Category defaults support Need/Want edits for future entries without rewriting history. See [the new home rules and acceptance](docs/HOME-PERIOD-DASHBOARD.md) and the earlier [screen flow review](docs/SCREEN-FLOW-REVIEW.md).
 
 Accepted-scope closeout and final interaction polish: [closeout notes](docs/CLOSEOUT.md). Finite animations respect reduced motion; financial rules and reviewed screen order stay unchanged.
 

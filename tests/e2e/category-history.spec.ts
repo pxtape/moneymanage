@@ -1,16 +1,220 @@
-import {mockWeekly} from './support/weekly';
-import {test,expect} from '@playwright/test';
-test.beforeEach(async({page})=>{await mockWeekly(page)});
-const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-test('rename emoji and delete a category without relabeling the old ledger or losing an archived edit option',async({page})=>{
- const id='00000000-0000-4000-8000-000000000456';const month=today.slice(0,7)+'-01';
- const jwt=[btoa(JSON.stringify({alg:'HS256',typ:'JWT'})),btoa(JSON.stringify({sub:id,exp:Math.floor(Date.now()/1000)+3600,aud:'authenticated',role:'authenticated'})),'mock'].join('.');
- await page.addInitScript(({id,jwt})=>localStorage.setItem('sb-mfdttuvsvplbrfmjxxqs-auth-token',JSON.stringify({access_token:jwt,refresh_token:'mock',token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:{id,aud:'authenticated',role:'authenticated',email:'tape@moneyspace.invalid',app_metadata:{},user_metadata:{},created_at:new Date().toISOString()}})),{id,jwt});
- const state={month,current_period_exists:true,period_exists:true,accounts:[{id:'account',name:'เงินรวม',kind:'bank',balance:'920',opening_balance:'1000'}],categories:[{id:'food',name:'อาหาร',icon:'🍜',tag:'need',envelope:null,updated_at:today+'T00:00:00Z',foodDrink:true}],envelopes:[],goals:[],contributions:[],income:'0',expenses:'80',cash:'920',savings:'0',savings_change:'0',transactions:[{id:'old',account_id:'account',destination_account_id:null,kind:'expense',amount:'80',category_id:'food',category_name_snapshot:'อาหาร',category_icon_snapshot:'🍜',food_drink_snapshot:true,envelope_id:null,envelope_name_snapshot:null,merchant:'อาหาร',notes:null,tag:'need',occurred_on:today,refund_of_id:null,updated_at:today+'T00:00:00Z',created_at:today+'T00:00:00Z'}],transaction_count:1};
- await page.route('**/rest/v1/profiles*',route=>route.fulfill({json:{display_name:'tape',onboarding_completed_at:today+'T00:00:00Z'}}));await page.route('**/rest/v1/rpc/moneyspace_snapshot',route=>route.fulfill({json:state}));let reject=true;
- await page.route('**/rest/v1/rpc/moneyspace_write',async route=>{const body=route.request().postDataJSON();expect(body.p_data.category_id).toBe('food');expect(body.p_data.version).toBeTruthy();if(reject){await route.fulfill({status:503,json:{message:'offline'}});return}if(body.p_action==='update_category'){expect(body.p_data.icon).toBe('🥗');expect(body.p_data.tag).toBe('want');state.categories[0]={...state.categories[0],name:body.p_data.name,icon:body.p_data.icon,tag:body.p_data.tag,updated_at:today+'T01:00:00Z'}}if(body.p_action==='delete_category')state.categories=[];await route.fulfill({json:{confirmed:true,id:'food',action:body.p_action}})});
- await page.goto('/');await expect(page.getByTestId('actual-expenses')).toContainText('80.00');await expect(page.getByRole('button',{name:'ครอบครัว',exact:true})).toHaveCount(0);if((page.viewportSize()?.width||1440)<700)await page.locator('.bottom-nav').getByRole('button',{name:'ตั้งค่า',exact:true}).click();else await page.getByRole('button',{name:'ตั้งค่าและหมวด',exact:true}).click();await page.getByRole('button',{name:'แก้ไขหมวด อาหาร',exact:true}).click();await page.getByLabel('ชื่อหมวด',{exact:true}).fill('มื้อพัก');await page.getByRole('button',{name:'ใช้ 🥗',exact:true}).click();await page.getByLabel('ประเภทเริ่มต้นของหมวด',{exact:true}).selectOption('want');await page.getByRole('button',{name:'บันทึกหมวด',exact:true}).click();await expect(page.getByRole('alert')).toContainText('ยังไม่ได้ยืนยัน');await expect(page.getByRole('dialog')).toBeVisible();reject=false;await page.getByRole('button',{name:'บันทึกหมวด',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.locator('.category-mappings')).toContainText('🥗 มื้อพัก');await expect(page.locator('.category-mappings')).toContainText('ความสุข · Want');await page.getByRole('button',{name:'เพิ่มรายจ่าย',exact:true}).first().click();await page.getByRole('button',{name:'🥗 มื้อพัก',exact:true}).click();await page.getByRole('button',{name:'เพิ่มเติม เฉพาะเมื่ออยากจด',exact:true}).click();await expect(page.getByLabel('จำเป็น / ความสุข')).toHaveValue('want');await page.getByRole('button',{name:'ปิด',exact:true}).click();
- await page.getByRole('button',{name:'งบรายเดือน',exact:true}).click();await expect(page.locator('.ledger-row')).toContainText('🍜 อาหาร');await expect(page.locator('.ledger-row')).not.toContainText('มื้อพัก');await expect(page.getByTestId('actual-expenses')).toContainText('80.00');
- await page.getByRole('button',{name:'tape',exact:true}).click();await page.getByRole('button',{name:'แก้ไขหมวด มื้อพัก',exact:true}).click();await page.getByRole('button',{name:'ลบหมวดนี้',exact:true}).click();await expect(page.getByRole('dialog')).toContainText('ประวัติเก่า');await page.getByRole('button',{name:'ยืนยันลบหมวด',exact:true}).click();await expect(page.locator('.category-mappings')).not.toContainText('มื้อพัก');await page.getByRole('button',{name:'เพิ่มรายจ่าย',exact:true}).first().click();await expect(page.getByRole('button',{name:'🥗 มื้อพัก',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'ปิด',exact:true}).click();
- await page.getByRole('button',{name:'งบรายเดือน',exact:true}).click();await expect(page.locator('.ledger-row')).toContainText('🍜 อาหาร');await page.locator('.ledger-row').click();await page.getByRole('button',{name:'แก้ไข',exact:true}).click();await expect(page.getByLabel('หมวดรายการ')).toHaveValue('food');await expect(page.getByRole('option',{name:'อาหาร (เลิกใช้แล้ว)'})).toHaveCount(1);await page.screenshot({path:`artifacts/${test.info().project.name}-category-history.png`,fullPage:true});
+import { mockWeekly } from "./support/weekly";
+import { mockHome } from "./support/home";
+import { test, expect } from "@playwright/test";
+test.beforeEach(async ({ page }) => {
+  await mockWeekly(page);
+});
+const today = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Bangkok",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
+test("rename emoji and delete a category without relabeling the old ledger or losing an archived edit option", async ({
+  page,
+}) => {
+  const id = "00000000-0000-4000-8000-000000000456";
+  const month = today.slice(0, 7) + "-01";
+  const jwt = [
+    btoa(JSON.stringify({ alg: "HS256", typ: "JWT" })),
+    btoa(
+      JSON.stringify({
+        sub: id,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        aud: "authenticated",
+        role: "authenticated",
+      }),
+    ),
+    "mock",
+  ].join(".");
+  await page.addInitScript(
+    ({ id, jwt }) =>
+      localStorage.setItem(
+        "sb-mfdttuvsvplbrfmjxxqs-auth-token",
+        JSON.stringify({
+          access_token: jwt,
+          refresh_token: "mock",
+          token_type: "bearer",
+          expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: {
+            id,
+            aud: "authenticated",
+            role: "authenticated",
+            email: "tape@moneyspace.invalid",
+            app_metadata: {},
+            user_metadata: {},
+            created_at: new Date().toISOString(),
+          },
+        }),
+      ),
+    { id, jwt },
+  );
+  const state = {
+    month,
+    current_period_exists: true,
+    period_exists: true,
+    accounts: [
+      {
+        id: "account",
+        name: "เงินรวม",
+        kind: "bank",
+        balance: "920",
+        opening_balance: "1000",
+      },
+    ],
+    categories: [
+      {
+        id: "food",
+        name: "อาหาร",
+        icon: "🍜",
+        tag: "need",
+        envelope: null,
+        updated_at: today + "T00:00:00Z",
+        foodDrink: true,
+      },
+    ],
+    envelopes: [],
+    goals: [],
+    contributions: [],
+    income: "0",
+    expenses: "80",
+    cash: "920",
+    savings: "0",
+    savings_change: "0",
+    transactions: [
+      {
+        id: "old",
+        account_id: "account",
+        destination_account_id: null,
+        kind: "expense",
+        amount: "80",
+        category_id: "food",
+        category_name_snapshot: "อาหาร",
+        category_icon_snapshot: "🍜",
+        food_drink_snapshot: true,
+        envelope_id: null,
+        envelope_name_snapshot: null,
+        merchant: "อาหาร",
+        notes: null,
+        tag: "need",
+        occurred_on: today,
+        refund_of_id: null,
+        updated_at: today + "T00:00:00Z",
+        created_at: today + "T00:00:00Z",
+      },
+    ],
+    transaction_count: 1,
+  };
+  await page.route("**/rest/v1/profiles*", (route) =>
+    route.fulfill({
+      json: {
+        display_name: "tape",
+        onboarding_completed_at: today + "T00:00:00Z",
+      },
+    }),
+  );
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (route) =>
+    route.fulfill({ json: state }),
+  );
+  await mockHome(page, () => state);
+  let reject = true;
+  await page.route("**/rest/v1/rpc/moneyspace_write", async (route) => {
+    const body = route.request().postDataJSON();
+    expect(body.p_data.category_id).toBe("food");
+    expect(body.p_data.version).toBeTruthy();
+    if (reject) {
+      await route.fulfill({ status: 503, json: { message: "offline" } });
+      return;
+    }
+    if (body.p_action === "update_category") {
+      expect(body.p_data.icon).toBe("🥗");
+      expect(body.p_data.tag).toBe("want");
+      state.categories[0] = {
+        ...state.categories[0],
+        name: body.p_data.name,
+        icon: body.p_data.icon,
+        tag: body.p_data.tag,
+        updated_at: today + "T01:00:00Z",
+      };
+    }
+    if (body.p_action === "delete_category") state.categories = [];
+    await route.fulfill({
+      json: { confirmed: true, id: "food", action: body.p_action },
+    });
+  });
+  await page.goto("/");
+  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await expect(
+    page.getByRole("button", { name: "ครอบครัว", exact: true }),
+  ).toHaveCount(0);
+  if ((page.viewportSize()?.width || 1440) < 700)
+    await page
+      .locator(".bottom-nav")
+      .getByRole("button", { name: "ตั้งค่า", exact: true })
+      .click();
+  else
+    await page
+      .getByRole("button", { name: "ตั้งค่าและหมวด", exact: true })
+      .click();
+  await page
+    .getByRole("button", { name: "แก้ไขหมวด อาหาร", exact: true })
+    .click();
+  await page.getByLabel("ชื่อหมวด", { exact: true }).fill("มื้อพัก");
+  await page.getByRole("button", { name: "ใช้ 🥗", exact: true }).click();
+  await page
+    .getByLabel("ประเภทเริ่มต้นของหมวด", { exact: true })
+    .selectOption("want");
+  await page.getByRole("button", { name: "บันทึกหมวด", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("ยังไม่ได้ยืนยัน");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  reject = false;
+  await page.getByRole("button", { name: "บันทึกหมวด", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".category-mappings")).toContainText("🥗 มื้อพัก");
+  await expect(page.locator(".category-mappings")).toContainText(
+    "ความสุข · Want",
+  );
+  await page
+    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "🥗 มื้อพัก", exact: true }).click();
+  await page
+    .getByRole("button", { name: "เพิ่มเติม เฉพาะเมื่ออยากจด", exact: true })
+    .click();
+  await expect(page.getByLabel("จำเป็น / ความสุข")).toHaveValue("want");
+  await page.getByRole("button", { name: "ปิด", exact: true }).click();
+  await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
+  await expect(page.locator(".ledger-row")).toContainText("🍜 อาหาร");
+  await expect(page.locator(".ledger-row")).not.toContainText("มื้อพัก");
+  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await page.getByRole("button", { name: "tape", exact: true }).click();
+  await page
+    .getByRole("button", { name: "แก้ไขหมวด มื้อพัก", exact: true })
+    .click();
+  await page.getByRole("button", { name: "ลบหมวดนี้", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("ประวัติเก่า");
+  await page.getByRole("button", { name: "ยืนยันลบหมวด", exact: true }).click();
+  await expect(page.locator(".category-mappings")).not.toContainText("มื้อพัก");
+  await page
+    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("button", { name: "🥗 มื้อพัก", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "ปิด", exact: true }).click();
+  await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
+  await expect(page.locator(".ledger-row")).toContainText("🍜 อาหาร");
+  await page.locator(".ledger-row").click();
+  await page.getByRole("button", { name: "แก้ไข", exact: true }).click();
+  await expect(page.getByLabel("หมวดรายการ")).toHaveValue("food");
+  await expect(
+    page.getByRole("option", { name: "อาหาร (เลิกใช้แล้ว)" }),
+  ).toHaveCount(1);
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}-category-history.png`,
+    fullPage: true,
+  });
 });

@@ -1,22 +1,251 @@
-import {mockWeekly} from './support/weekly';
-import {test,expect} from '@playwright/test';
-test.beforeEach(async({page})=>{await mockWeekly(page)});
-const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-test('real-space form retries the same request after an uncertain response; monthly targets never consume money',async({page})=>{
- const id='00000000-0000-4000-8000-000000000456';const account='00000000-0000-4000-8000-000000000111';const category='00000000-0000-4000-8000-000000000113';const envelope='00000000-0000-4000-8000-000000000114';
- const jwt=[btoa(JSON.stringify({alg:'HS256',typ:'JWT'})),btoa(JSON.stringify({sub:id,exp:Math.floor(Date.now()/1000)+3600,iat:Math.floor(Date.now()/1000),aud:'authenticated',role:'authenticated'})),'mock-signature'].join('.');
- await page.addInitScript(({id,jwt})=>localStorage.setItem('sb-mfdttuvsvplbrfmjxxqs-auth-token',JSON.stringify({access_token:jwt,refresh_token:'mock',token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:{id,aud:'authenticated',role:'authenticated',email:'tape@moneyspace.invalid',app_metadata:{},user_metadata:{},created_at:new Date().toISOString()}})),{id,jwt});
- const state={current_period_exists:false,month:today.slice(0,7)+'-01',period_exists:true,accounts:[{id:account,name:'บัญชีใช้จ่าย',kind:'bank',balance:'1000.00',opening_balance:'1000.00'}],categories:[{id:category,name:'อาหาร',icon:'🍜',tag:'need',envelope:envelope as string|null}],envelopes:[{id:envelope,name:'อาหาร',cadence:'daily' as 'daily'|'bill'|'flexible',updated_at:today+'T00:00:00Z',rollover:'none',allocated:'300.00',carried:'0.00',spent:'0.00',remaining:'300.00'}],goals:[{id:'goal',name:'ฉุกเฉิน',target:'1000',saved:'100'}],contributions:[],income:'0',expenses:'0',cash:'1000.00',savings:'100.00',reserved_current:'300.00',transactions:[] as Record<string,unknown>[],transaction_count:0};
- await page.route('**/rest/v1/profiles*',route=>route.fulfill({json:{display_name:'tape',onboarding_completed_at:today+'T00:00:00Z'}}));
- await page.route('**/rest/v1/rpc/moneyspace_snapshot',route=>route.fulfill({json:state}));
- const requestKeys:string[]=[];let inserted=false;const initializationKeys:string[]=[];
- await page.route('**/rest/v1/rpc/moneyspace_write',async route=>{const body=route.request().postDataJSON();if(body.p_action==='open_month'){state.current_period_exists=true;initializationKeys.push(body.p_key)}if(body.p_action==='add_transaction'&&body.p_data.kind==='expense'){requestKeys.push(body.p_key);if(!inserted){inserted=true;state.cash='920.00';state.expenses='80.00';state.accounts[0].balance='920.00';state.envelopes[0].spent='80.00';state.envelopes[0].remaining='220.00';state.reserved_current='220.00';state.transactions=[{id:'expense',account_id:account,destination_account_id:null,kind:'expense',amount:'80.00',category_id:category,envelope_id:envelope,merchant:'อาหาร',notes:null,tag:'need',occurred_on:today,refund_of_id:null,updated_at:today+'T00:00:00Z',created_at:today+'T00:00:00Z'}];state.transaction_count=1;await route.abort('failed');return}}
- if(body.p_action==='delete_envelope'){expect(body.p_data.envelope_id).toBe(envelope);expect(body.p_data.version).toBeTruthy();state.envelopes=[];state.categories[0].envelope=null}
- if(body.p_action==='allocate'){state.envelopes[0].cadence=body.p_data.cadence;state.envelopes[0].name=body.p_data.name;state.envelopes[0].allocated=body.p_data.amount;state.envelopes[0].remaining='5920.00';state.reserved_current='420.00'}
- await route.fulfill({json:{confirmed:true,id:'confirmed-id',action:body.p_action}})});
- await page.goto('/');await expect(page.getByTestId('actual-cash')).toContainText('1,000.00');expect(initializationKeys.length).toBeGreaterThan(0);expect(new Set(initializationKeys).size).toBe(1);await page.getByRole('button',{name:'เพิ่มรายจ่าย',exact:true}).first().click();await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('80');await page.getByRole('button',{name:'🍜 อาหาร',exact:true}).click();await page.getByRole('button',{name:'บันทึกรายจ่าย',exact:true}).click();await expect(page.getByRole('alert')).toContainText('ยังไม่ได้ยืนยัน');await expect(page.getByTestId('actual-cash')).toContainText('1,000.00');await page.getByRole('button',{name:'บันทึกรายจ่าย',exact:true}).click();await expect(page.getByRole('status')).toContainText('Supabase ยืนยัน');await expect(page.getByTestId('actual-cash')).toContainText('920.00');await expect(page.getByTestId('actual-expenses')).toContainText('80.00');expect(requestKeys).toHaveLength(2);expect(requestKeys[0]).toBe(requestKeys[1]);
- await page.getByRole('button',{name:'งบรายเดือน',exact:true}).click();await page.getByRole('button',{name:'แก้งบ',exact:true}).click();await page.getByLabel('งบต่อเดือน (บาท)').fill('6000');await page.getByRole('button',{name:'บันทึกงบ'}).click();await expect(page.getByTestId('actual-cash')).toContainText('920.00');await expect(page.getByTestId('actual-expenses')).toContainText('80.00');
- await expect(page.getByRole('button',{name:'เพิ่มบัญชี',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'โอนเงิน',exact:true})).toHaveCount(0);await expect(page.getByText('฿5,920.00',{exact:true})).toBeVisible();await expect(page.getByText(/เฉลี่ยใช้ได้.*วัน จนสิ้นเดือน/)).toBeVisible();await page.getByRole('button',{name:'เพิ่มรายจ่าย',exact:true}).first().click();await expect(page.getByLabel('บัญชีที่ใช้จ่าย')).toHaveCount(0);await page.getByRole('button',{name:'ปิด',exact:true}).click();await page.screenshot({path:`artifacts/${test.info().project.name}-m3-simple-budgets.png`,fullPage:true});
- await page.getByRole('button',{name:'แก้งบ',exact:true}).click();await page.getByLabel('ชื่อซองงบประมาณ').fill('อาหารและเครื่องดื่ม');await page.getByLabel('วิธีใช้กระเป๋า',{exact:true}).selectOption('bill');await page.getByRole('button',{name:'บันทึกงบ',exact:true}).click();await expect(page.getByRole('heading',{name:'อาหารและเครื่องดื่ม',exact:true})).toBeVisible();await expect(page.getByText('บิลรายเดือน · ไม่เฉลี่ยรายวัน',{exact:true})).toBeVisible();await expect(page.getByText(/เฉลี่ยใช้ได้.*วัน จนสิ้นเดือน/)).toHaveCount(0);await page.getByRole('button',{name:'แก้งบ',exact:true}).click();await expect(page.getByLabel('วิธีใช้กระเป๋า',{exact:true})).toHaveValue('bill');await page.getByRole('button',{name:'ปิด',exact:true}).click();
- await page.getByRole('button',{name:'แก้งบ',exact:true}).click();await page.getByRole('button',{name:'ลบงบนี้',exact:true}).click();await expect(page.getByText('รายจ่ายเดิม เงินรวม และประวัติยังอยู่ครบ',{exact:false})).toBeVisible();await page.getByRole('button',{name:'ยืนยันลบงบ',exact:true}).click();await expect(page.getByRole('heading',{name:'อาหารและเครื่องดื่ม',exact:true})).toHaveCount(0);await expect(page.getByTestId('actual-cash')).toContainText('920.00');await expect(page.getByTestId('actual-expenses')).toContainText('80.00');await expect(page.locator('.real-transactions .transaction-row')).toHaveCount(1);
+import { mockWeekly } from "./support/weekly";
+import { mockHome } from "./support/home";
+import { test, expect } from "@playwright/test";
+test.beforeEach(async ({ page }) => {
+  await mockWeekly(page);
+});
+const today = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Bangkok",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
+test("real-space form retries the same request after an uncertain response; monthly targets never consume money", async ({
+  page,
+}) => {
+  const id = "00000000-0000-4000-8000-000000000456";
+  const account = "00000000-0000-4000-8000-000000000111";
+  const category = "00000000-0000-4000-8000-000000000113";
+  const envelope = "00000000-0000-4000-8000-000000000114";
+  const jwt = [
+    btoa(JSON.stringify({ alg: "HS256", typ: "JWT" })),
+    btoa(
+      JSON.stringify({
+        sub: id,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+        aud: "authenticated",
+        role: "authenticated",
+      }),
+    ),
+    "mock-signature",
+  ].join(".");
+  await page.addInitScript(
+    ({ id, jwt }) =>
+      localStorage.setItem(
+        "sb-mfdttuvsvplbrfmjxxqs-auth-token",
+        JSON.stringify({
+          access_token: jwt,
+          refresh_token: "mock",
+          token_type: "bearer",
+          expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: {
+            id,
+            aud: "authenticated",
+            role: "authenticated",
+            email: "tape@moneyspace.invalid",
+            app_metadata: {},
+            user_metadata: {},
+            created_at: new Date().toISOString(),
+          },
+        }),
+      ),
+    { id, jwt },
+  );
+  const state = {
+    current_period_exists: false,
+    month: today.slice(0, 7) + "-01",
+    period_exists: true,
+    accounts: [
+      {
+        id: account,
+        name: "บัญชีใช้จ่าย",
+        kind: "bank",
+        balance: "1000.00",
+        opening_balance: "1000.00",
+      },
+    ],
+    categories: [
+      {
+        id: category,
+        name: "อาหาร",
+        icon: "🍜",
+        tag: "need",
+        envelope: envelope as string | null,
+      },
+    ],
+    envelopes: [
+      {
+        id: envelope,
+        name: "อาหาร",
+        cadence: "daily" as "daily" | "bill" | "flexible",
+        updated_at: today + "T00:00:00Z",
+        rollover: "none",
+        allocated: "300.00",
+        carried: "0.00",
+        spent: "0.00",
+        remaining: "300.00",
+      },
+    ],
+    goals: [{ id: "goal", name: "ฉุกเฉิน", target: "1000", saved: "100" }],
+    contributions: [],
+    income: "0",
+    expenses: "0",
+    cash: "1000.00",
+    savings: "100.00",
+    reserved_current: "300.00",
+    transactions: [] as Record<string, unknown>[],
+    transaction_count: 0,
+  };
+  await page.route("**/rest/v1/profiles*", (route) =>
+    route.fulfill({
+      json: {
+        display_name: "tape",
+        onboarding_completed_at: today + "T00:00:00Z",
+      },
+    }),
+  );
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (route) =>
+    route.fulfill({ json: state }),
+  );
+  await mockHome(page, () => state);
+  const requestKeys: string[] = [];
+  let inserted = false;
+  const initializationKeys: string[] = [];
+  await page.route("**/rest/v1/rpc/moneyspace_write", async (route) => {
+    const body = route.request().postDataJSON();
+    if (body.p_action === "open_month") {
+      state.current_period_exists = true;
+      initializationKeys.push(body.p_key);
+    }
+    if (body.p_action === "add_transaction" && body.p_data.kind === "expense") {
+      requestKeys.push(body.p_key);
+      if (!inserted) {
+        inserted = true;
+        state.cash = "920.00";
+        state.expenses = "80.00";
+        state.accounts[0].balance = "920.00";
+        state.envelopes[0].spent = "80.00";
+        state.envelopes[0].remaining = "220.00";
+        state.reserved_current = "220.00";
+        state.transactions = [
+          {
+            id: "expense",
+            account_id: account,
+            destination_account_id: null,
+            kind: "expense",
+            amount: "80.00",
+            category_id: category,
+            envelope_id: envelope,
+            merchant: "อาหาร",
+            notes: null,
+            tag: "need",
+            occurred_on: today,
+            refund_of_id: null,
+            updated_at: today + "T00:00:00Z",
+            created_at: today + "T00:00:00Z",
+          },
+        ];
+        state.transaction_count = 1;
+        await route.abort("failed");
+        return;
+      }
+    }
+    if (body.p_action === "delete_envelope") {
+      expect(body.p_data.envelope_id).toBe(envelope);
+      expect(body.p_data.version).toBeTruthy();
+      state.envelopes = [];
+      state.categories[0].envelope = null;
+    }
+    if (body.p_action === "allocate") {
+      state.envelopes[0].cadence = body.p_data.cadence;
+      state.envelopes[0].name = body.p_data.name;
+      state.envelopes[0].allocated = body.p_data.amount;
+      state.envelopes[0].remaining = "5920.00";
+      state.reserved_current = "420.00";
+    }
+    await route.fulfill({
+      json: { confirmed: true, id: "confirmed-id", action: body.p_action },
+    });
+  });
+  await page.goto("/");
+  await expect(page.getByTestId("actual-cash")).toContainText("1,000.00");
+  expect(initializationKeys.length).toBeGreaterThan(0);
+  expect(new Set(initializationKeys).size).toBe(1);
+  await page
+    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
+    .first()
+    .click();
+  await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("80");
+  await page.getByRole("button", { name: "🍜 อาหาร", exact: true }).click();
+  await page
+    .getByRole("button", { name: "บันทึกรายจ่าย", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("ยังไม่ได้ยืนยัน");
+  await expect(page.getByTestId("actual-cash")).toContainText("1,000.00");
+  await page
+    .getByRole("button", { name: "บันทึกรายจ่าย", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Supabase ยืนยัน");
+  await expect(page.getByTestId("actual-cash")).toContainText("920.00");
+  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  expect(requestKeys).toHaveLength(2);
+  expect(requestKeys[0]).toBe(requestKeys[1]);
+  await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
+  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
+  await page.getByLabel("งบต่อเดือน (บาท)").fill("6000");
+  await page.getByRole("button", { name: "บันทึกงบ" }).click();
+  await expect(page.getByTestId("actual-cash")).toContainText("920.00");
+  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await expect(
+    page.getByRole("button", { name: "เพิ่มบัญชี", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "โอนเงิน", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("฿5,920.00", { exact: true })).toBeVisible();
+  await expect(page.getByText(/เฉลี่ยใช้ได้.*วัน จนสิ้นเดือน/)).toBeVisible();
+  await page
+    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
+    .first()
+    .click();
+  await expect(page.getByLabel("บัญชีที่ใช้จ่าย")).toHaveCount(0);
+  await page.getByRole("button", { name: "ปิด", exact: true }).click();
+  await page.screenshot({
+    path: `artifacts/${test.info().project.name}-m3-simple-budgets.png`,
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
+  await page.getByLabel("ชื่อซองงบประมาณ").fill("อาหารและเครื่องดื่ม");
+  await page.getByLabel("วิธีใช้กระเป๋า", { exact: true }).selectOption("bill");
+  await page.getByRole("button", { name: "บันทึกงบ", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "อาหารและเครื่องดื่ม", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("บิลรายเดือน · ไม่เฉลี่ยรายวัน", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/เฉลี่ยใช้ได้.*วัน จนสิ้นเดือน/)).toHaveCount(0);
+  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
+  await expect(page.getByLabel("วิธีใช้กระเป๋า", { exact: true })).toHaveValue(
+    "bill",
+  );
+  await page.getByRole("button", { name: "ปิด", exact: true }).click();
+  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
+  await page.getByRole("button", { name: "ลบงบนี้", exact: true }).click();
+  await expect(
+    page.getByText("รายจ่ายเดิม เงินรวม และประวัติยังอยู่ครบ", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "ยืนยันลบงบ", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "อาหารและเครื่องดื่ม", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByTestId("actual-cash")).toContainText("920.00");
+  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await expect(page.locator(".real-transactions .transaction-row")).toHaveCount(
+    1,
+  );
 });

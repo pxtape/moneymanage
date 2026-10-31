@@ -52,6 +52,7 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/appearance-weekly.sql
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/comparison-retirement.sql
       - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/comparison-four-charts.sql
+      - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/home-period-dashboard.sql
       - run: bash supabase/tests/concurrency.sh
   build:
     runs-on: ubuntu-latest
