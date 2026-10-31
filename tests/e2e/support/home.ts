@@ -56,7 +56,7 @@ export async function mockHome(page: Page, getSnapshot: () => Snapshot) {
           ),
         },
         daily: {
-          target: "0",
+          target: "193.5483870967741935",
           expenses: state.expenses,
           transactions,
           categories: [],

@@ -63,7 +63,18 @@ export interface HomeDashboardData {
     savings: string;
   }[];
 }
-export const homeMoney = (value: string) => decimalSatang(value);
+// Derived NUMERIC values (for example a monthly budget / 31 days) can
+// contain more than two decimals. Round their display value in decimal
+// space while keeping the strict ledger parser for recorded amounts.
+export function homeMoney(value: string): number {
+  if (!/^-?\d+(\.\d+)?$/.test(value)) throw new Error("Invalid decimal");
+  const negative = value.startsWith("-");
+  const [whole, fraction = ""] = value.replace(/^-/, "").split(".");
+  const cents = decimalSatang(`${whole}.${fraction.padEnd(2, "0").slice(0, 2)}`);
+  const rounded = cents + (Number(fraction[2] || "0") >= 5 ? 1 : 0);
+  if (!Number.isSafeInteger(rounded)) throw new Error("Amount exceeds safe range");
+  return negative ? -rounded : rounded;
+}
 export function gaugePercent(spent: string, target: string) {
   const goal = homeMoney(target);
   const used = homeMoney(spent);
