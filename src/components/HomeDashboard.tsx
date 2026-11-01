@@ -81,11 +81,13 @@ export function HomeDashboard({
   hidden,
   onToggle,
   onExpense,
+  onTransaction,
 }: {
   revision: unknown;
   hidden: boolean;
   onToggle: () => void;
   onExpense: () => void;
+  onTransaction: (id: string) => Promise<void>;
 }) {
   const today = bangkokToday();
   const [date, setDate] = useState(today);
@@ -95,6 +97,19 @@ export function HomeDashboard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [opening, setOpening] = useState<string | null>(null);
+  async function openTransaction(id: string) {
+    if (opening) return;
+    setOpening(id);
+    setError("");
+    try {
+      await onTransaction(id);
+    } catch {
+      setError("เปิดรายการไม่ได้ รายการอาจถูกลบแล้ว กรุณาลองใหม่");
+    } finally {
+      setOpening(null);
+    }
+  }
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -343,8 +358,8 @@ export function HomeDashboard({
               <div className="daily-activity">
                 <div className="section-heading">
                   <div>
-                    <h2>วันนี้จ่ายอะไรไปบ้าง</h2>
-                    <p>{data.daily.transactions.length} รายการในวันที่เลือก</p>
+                    <h2>รายการรับ–จ่าย</h2>
+                    <p>{data.daily.transactions.length} รายการในวันที่เลือก · แตะเพื่อแก้ไข</p>
                   </div>
                   <Button onClick={onExpense}>
                     <ArrowUpRight size={16} />
@@ -354,7 +369,11 @@ export function HomeDashboard({
                 {data.daily.transactions.length ? (
                   <div className="home-day-list">
                     {data.daily.transactions.map((t) => (
-                      <div key={t.id}>
+                      <button key={t.id} type="button" className="home-day-transaction"
+                        disabled={opening !== null}
+                        aria-busy={opening === t.id}
+                        aria-label={`ดูและแก้ไข ${t.merchant}`}
+                        onClick={() => void openTransaction(t.id)}>
                         <span
                           className={
                             t.kind === "income" || t.kind === "refund"
@@ -378,7 +397,8 @@ export function HomeDashboard({
                           {t.kind === "expense" ? "-" : "+"}
                           {amount(t.amount)}
                         </b>
-                      </div>
+                        <ChevronRight size={16} aria-hidden="true" />
+                      </button>
                     ))}
                   </div>
                 ) : (

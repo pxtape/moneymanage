@@ -748,6 +748,18 @@ export default function FinanceDashboard({
                     })
                   }
                   onExpense={() => setOpen(true)}
+                  onTransaction={async (id) => {
+                    const { data, error } = await supabase
+                      .from("transactions")
+                      .select("id,account_id,destination_account_id,kind,amount::text,category_id,category_name_snapshot,category_icon_snapshot,food_drink_snapshot,spending_group_snapshot,envelope_id,envelope_name_snapshot,merchant,notes,tag,occurred_on,refund_of_id,updated_at,created_at")
+                      .eq("id", id)
+                      .eq("owner_id", user.id)
+                      .is("household_id", null)
+                      .is("deleted_at", null)
+                      .single();
+                    if (error || !data) throw new Error("Transaction unavailable");
+                    openAction({ type: "details", item: data as LedgerTransaction });
+                  }}
                 />
               )}
               {page === "wallets" && (
