@@ -4,7 +4,6 @@ import type { CSSProperties } from 'react';
 import { Croissant, Moon, NotebookPen, Plus, Search } from 'lucide-react';
 import { duckMoment } from '../duck-companions';
 import { DuckMascot } from './DuckMascot';
-import { DuckFace } from './DuckFace';
 
 export function TimeDuck({className=''}:{className?:string}) {
  const [moment,setMoment]=useState(()=>duckMoment());
