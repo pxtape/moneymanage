@@ -116,17 +116,8 @@ test('daily home edits expense and income from an earlier month and refreshes th
   expect(writes).toBe(2);
   expect(additions).toBe(1);
   await page.getByRole('tab',{name:'รายสัปดาห์',exact:true}).click();
-  await page.getByRole('button',{name:'น้องช่วยอ่านกราฟ',exact:true}).click();
-  await expect(page.locator('.duck-speech')).toContainText('รายจ่ายสุทธิที่จด');
-  await expect(page.getByRole('img',{name:'กราฟย่อรายจ่ายสุทธิรายวัน'})).toBeVisible();
-  await page.getByRole('button',{name:'การ์ดสรุปสัปดาห์',exact:true}).click();
-  await expect(page.getByAltText('ตัวอย่างการ์ดสัปดาห์ที่ซ่อนยอดเงิน')).toBeVisible();
-  await page.getByLabel('แสดงยอดเงินบนการ์ดแชร์').check();
-  await expect(page.getByAltText('ตัวอย่างการ์ดสัปดาห์ที่แสดงยอดเงิน')).toBeVisible();
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button',{name:'บันทึกรูป PNG',exact:true}).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/\.png$/);
-  expect(await download.failure()).toBeNull();
+  await expect(page.getByRole('button',{name:'น้องช่วยอ่านกราฟ',exact:true})).toHaveCount(0);
+  await expect(page.locator('.duck-postcard')).toHaveCount(0);
+  if(test.info().project.name==='mobile'){const box=await page.locator('.bottom-nav .mobile-add').boundingBox();expect(Math.abs(box!.x+box!.width/2-195)).toBeLessThan(1);const plus=await page.locator('.bottom-nav .duck-plus>svg:last-child').boundingBox();expect(Math.abs(plus!.x+plus!.width/2-195)).toBeLessThan(1);}
   expect(errors).toEqual([]);
 });

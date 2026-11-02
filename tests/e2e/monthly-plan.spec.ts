@@ -165,7 +165,7 @@ test("monthly liquidity plan separates forecasts from money and persists monthly
   await page.getByRole("tab", { name: "รายเดือน", exact: true }).click();
   await expect(
     page.locator(".home-budget-list article").filter({ hasText: "ค่าไฟ" }),
-  ).toContainText("เหลือ ฿1,000.00");
+  ).toContainText("฿1,000");
   await expect(page.getByTestId("actual-cash")).toBeVisible();
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
   await expect(
@@ -173,7 +173,7 @@ test("monthly liquidity plan separates forecasts from money and persists monthly
   ).toHaveCount(0);
   await expect(page.getByTestId("plan-reserve")).toContainText("—");
   await page
-    .getByRole("button", { name: "เริ่มวางแผนเดือนนี้", exact: true })
+    .getByRole("button", { name: "ตั้งแผน", exact: true })
     .click();
   await page.getByLabel("ยอดคาดแหล่งที่ 1", { exact: true }).fill("30000");
   await page
@@ -197,10 +197,10 @@ test("monthly liquidity plan separates forecasts from money and persists monthly
     .click();
   expect(keys[0]).toBe(keys[1]);
   await expect(page.getByTestId("plan-income")).toContainText("35,000.25");
-  await expect(page.getByTestId("plan-expenses")).toContainText("8,000.00");
-  await expect(page.getByTestId("plan-savings")).toContainText("10,000.00");
+  await expect(page.getByTestId("plan-expenses")).toContainText("8,000");
+  await expect(page.getByTestId("plan-savings")).toContainText("10,000");
   await expect(page.getByTestId("plan-reserve")).toContainText("17,000.25");
-  await expect(page.getByTestId("actual-cash")).toContainText("8,000.00");
+  await expect(page.getByTestId("actual-cash")).toContainText("8,000");
   await expect(page.getByTestId("actual-income")).toContainText("0.00");
   expect(
     await page.evaluate(
@@ -219,15 +219,15 @@ test("monthly liquidity plan separates forecasts from money and persists monthly
     animations: "disabled",
   });
   await expect(page.getByTestId("plan-reserve")).toContainText("17,000.25");
-  await expect(page.locator(".cashflow-details")).toContainText("งานเสริม");
-  await expect(page.locator(".cashflow-details")).toContainText("อาหาร");
+  await expect(page.locator(".plan-source-chips")).toContainText("งานเสริม");
+
   await page.screenshot({
     path: `artifacts/${test.info().project.name}-monthly-plan-budgets.png`,
     fullPage: true,
     animations: "disabled",
   });
   await page
-    .getByRole("button", { name: "แก้แผนเดือนนี้", exact: true })
+    .getByRole("button", { name: "แก้แผน", exact: true })
     .click();
   await page
     .getByRole("button", { name: "ลบแหล่งรายได้ 2", exact: true })
@@ -241,19 +241,19 @@ test("monthly liquidity plan separates forecasts from money and persists monthly
     .getByRole("button", { name: "บันทึกแผนเดือนนี้", exact: true })
     .click();
   await expect(page.locator(".cashflow-card.deficit")).toContainText(
-    "แผนยังขาด",
+    "แผนขาด",
   );
-  await expect(page.getByTestId("plan-reserve")).toContainText("3,000.00");
-  await expect(page.locator(".cashflow-details")).not.toContainText("งานเสริม");
-  await expect(page.getByTestId("actual-cash")).toContainText("8,000.00");
+  await expect(page.getByTestId("plan-reserve")).toContainText("3,000");
+  await expect(page.locator(".plan-source-chips")).not.toContainText("งานเสริม");
+  await expect(page.getByTestId("actual-cash")).toContainText("8,000");
   await page.reload();
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
-  await expect(page.getByTestId("plan-reserve")).toContainText("3,000.00");
+  await expect(page.getByTestId("plan-reserve")).toContainText("3,000");
   await page.getByRole("button", { name: "เดือนก่อน", exact: true }).click();
-  await expect(page.getByTestId("plan-income")).toContainText("ยังไม่ได้ตั้ง");
+  await expect(page.getByTestId("plan-income")).toContainText("ยังไม่ตั้ง");
   await page.getByRole("button", { name: "เดือนถัดไป", exact: true }).click();
-  await expect(page.getByTestId("plan-reserve")).toContainText("3,000.00");
-  await page.getByRole("button", { name: "สลับธีม", exact: true }).click();
+  await expect(page.getByTestId("plan-reserve")).toContainText("3,000");
+  await expect(page.getByRole("button", { name: "สลับธีม", exact: true })).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

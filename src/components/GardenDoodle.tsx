@@ -1,0 +1,5 @@
+import { DuckFace } from './DuckFace';
+export function GardenDoodle({kind='sprout',className=''}:{kind?:'sprout'|'flower'|'heart';className?:string}){
+ return <svg className={`garden-doodle ${className}`} viewBox="0 0 48 48" aria-hidden="true">{kind==='flower'?<g stroke="#9c7651" strokeWidth="1.6"><path d="M25 46V24M25 38q-13-13-15-4q3 10 15 4" fill="#b5c79c"/><path d="M24 24C6 27 5 11 17 13C8 2 25-3 27 10C40 0 48 15 35 21C48 30 32 41 27 28C14 40 7 24 24 24" fill="#f7d2d6"/><circle cx="26" cy="20" r="5" fill="#f4d68c"/></g>:kind==='heart'?<path d="M24 39C-6 22 8 4 24 16C40 4 54 22 24 39Z" fill="#f2c0c9" stroke="#ae7c79" strokeWidth="1.6"/>:<g stroke="#7a805d" strokeWidth="1.7" strokeLinecap="round"><path d="M25 44V22" fill="none"/><path d="M24 31C6 31 3 16 10 14C22 12 26 25 24 31M25 25C26 7 42 5 42 13C42 24 31 28 25 25" fill="#c0d0a5"/></g>}</svg>;
+}
+export function DuckPerch(){return <span className="duck-perch" aria-hidden="true"><svg viewBox="0 0 60 66"><g transform="translate(30 32)"><DuckFace/></g></svg><i/><i/></span>}

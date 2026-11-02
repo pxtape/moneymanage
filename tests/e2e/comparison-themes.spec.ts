@@ -7,7 +7,7 @@ const today = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit",
 }).format(new Date());
-test("comparison requires mutual sharing, charts fit both screens, and pink persists across dialogs", async ({
+test("comparison requires mutual sharing, charts fit both screens, and legacy themes reset to cream across dialogs", async ({
   page,
 }) => {
   const id = "00000000-0000-4000-8000-000000000456",
@@ -331,10 +331,11 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
   await page.getByRole("button", { name: "เดือนถัดไป", exact: true }).click();
   await expect(page.locator(".comparison-chart").first()).toBeVisible();
   await page.getByRole("button", { name: "Tape", exact: true }).click();
-  await page.getByRole("button", { name: "ชมพู", exact: false }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "pink");
+  await expect(page.getByRole("button", { name: "ชมพู", exact: false })).toHaveCount(0);
+  await page.evaluate(() => localStorage.setItem("moneyspace-theme", "dark"));
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "pink");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
   await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await expect(page.getByRole("dialog")).toBeVisible();

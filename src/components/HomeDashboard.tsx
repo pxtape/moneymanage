@@ -1,7 +1,7 @@
-import { TimeDuck, ChartDuck, DuckLoading, PocketDuck } from "./DuckCompanions";
+import { BudgetTile } from "./BudgetTile";
+import { GardenDoodle, DuckPerch } from "./GardenDoodle";
+import { DuckLoading } from "./DuckCompanions";
 import { DuckCalendar } from "./DuckCalendar";
-import { WeeklyDigest } from "./WeeklyDigest";
-import { useTheme } from "../theme";
 import { CategoryArtwork } from "./CategoryArtwork";
 import { DuckFace } from "./DuckFace";
 import { DuckMascot } from "./DuckMascot";
@@ -37,7 +37,6 @@ import { supabase } from "../supabase";
 import { baht, parseAmount } from "../finance";
 import { bangkokToday } from "../categories";
 import {
-  budgetPercent,
   gaugePercent,
   homeMoney,
   type HomeDashboardData,
@@ -87,19 +86,16 @@ const monthName = (date: string) =>
 
 export function HomeDashboard({
   revision,
-  name = "ฉัน",
   hidden,
   onToggle,
   onTransaction,
 }: {
   revision: unknown;
-  name?: string;
   hidden: boolean;
   onToggle: () => void;
   onTransaction: (id: string) => Promise<void>;
 }) {
   const today = bangkokToday();
-  const {light}=useTheme();
   const [calendar,setCalendar]=useState(false);
   const [date, setDate] = useState(today);
   const [range, setRange] = useState<HomeRange>("day");
@@ -289,7 +285,7 @@ export function HomeDashboard({
         </div>
       )}
       <section className="home-balance-card">
-        <TimeDuck className="balance-duck"/>
+        <DuckPerch/>
         <div className="balance-card-heading">
           <span>รอบ {shortDate(data.cycle_from)}–{shortDate(data.cycle_through)}</span>
           <button
@@ -343,7 +339,7 @@ export function HomeDashboard({
         ))}
       </div>
       {range === "day" && (
-        <section className="panel home-range-panel">
+        <section className="panel home-range-panel garden-panel"><GardenDoodle kind={range==="day"?"flower":"sprout"} className="panel-sprig"/>
           <div
             className="home-subtabs"
             role="tablist"
@@ -389,13 +385,13 @@ export function HomeDashboard({
                   <Button type="submit" disabled={savingTarget}>{savingTarget ? "กำลังบันทึก…" : "ตั้งเป้า"}</Button>
                 </form>
                 {targetError && <small role="alert" className="form-error">{targetError}</small>}
-                <small>เป้าส่วนตัว แยกจากงบรายเดือน · 0 คือไม่ตั้งเป้า</small>
+
               </div>
               <div className="daily-activity">
                 <div className="section-heading">
                   <div>
                     <h2>รายการรับ–จ่าย</h2>
-                    <p>{data.daily.transactions.length} รายการในวันที่เลือก · แตะเพื่อแก้ไข</p>
+                    <p>{data.daily.transactions.length} รายการ</p>
                   </div>
                 </div>
                 {data.daily.transactions.length ? (
@@ -528,7 +524,6 @@ export function HomeDashboard({
           <div className="section-heading">
             <div>
               <h2>สัปดาห์นี้เทียบสัปดาห์ก่อน</h2>
-              <ChartDuck message={hidden ? "เปิดแสดงยอดเพื่อให้น้องช่วยอ่านตัวเลข" : `รายจ่ายสุทธิที่จดในช่วงนี้ ${baht(week.reduce((sum,d)=>sum+d.current,0))} · วันที่ไม่มีรายการอาจยังไม่ได้จด`}/>
               <p>
                 อาทิตย์–เสาร์ · {shortDate(data.weekly.from)}–
                 {shortDate(data.weekly.through)}
@@ -560,7 +555,6 @@ export function HomeDashboard({
           </div>
         </section>
       )}
-      {range === "week" && <WeeklyDigest today={date} name={name} light={light} revision={revision}/>}
       {range === "month" && (
         <section className="panel home-range-panel">
           <div className="month-cycle-head">
@@ -593,38 +587,7 @@ export function HomeDashboard({
               </div>
             </div>
           </div>
-          <div className="home-budget-list">
-            {data.monthly.budgets.map((b) => {
-              const pct = budgetPercent(b.spent, b.target);
-              return (
-                <article key={b.id}>
-                  <div>
-                    <span>
-                      <PocketDuck icon={b.icon} name={b.name}/><strong>{b.name}</strong>
-                    </span>
-                    <b
-                      className={
-                        homeMoney(b.remaining) < 0 ? "overspent-label" : ""
-                      }
-                    >
-                      {homeMoney(b.remaining) < 0 ? "เกิน" : "เหลือ"}{" "}
-                      {amount(String(Math.abs(homeMoney(b.remaining)) / 100))}
-                    </b>
-                  </div>
-                  <div className="pocket-track">
-                    <i style={{ width: `${Math.min(100, pct)}%` }} />
-                  </div>
-                  <small>
-                    ใช้ {amount(b.spent)} จากงบ {amount(b.target)} ·{" "}
-                    {pct.toFixed(0)}%
-                  </small>
-                </article>
-              );
-            })}
-            {!data.monthly.budgets.length && (
-              <div className="home-empty wide">ยังไม่มีก้อนงบสำหรับรอบนี้</div>
-            )}
-          </div>
+          <div className="home-budget-list">{data.monthly.budgets.map(b=><BudgetTile key={b.id} name={b.name} icon={b.icon} target={b.target} spent={b.spent} remaining={b.remaining} hidden={hidden}/>)}</div>
         </section>
       )}
       {range === "year" && (

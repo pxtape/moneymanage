@@ -7,7 +7,7 @@ const today = new Intl.DateTimeFormat("en-CA", {
   month: "2-digit",
   day: "2-digit",
 }).format(new Date());
-test("personal pockets, pinned categories and private weekly cards work without changing money", async ({
+test("selectable single pocket artwork and pinned categories work without changing money", async ({
   page,
 }) => {
   const id = "00000000-0000-4000-8000-000000000456",
@@ -153,9 +153,9 @@ test("personal pockets, pinned categories and private weekly cards work without 
         return;
       }
     } else if (b.p_action === "allocate") {
-      expect(b.p_data.color).toBe("#8aaeff");
-      expect(b.p_data.pocket_icon).toBe("🚀");
-      expect(b.p_data.cover).toBe("dots");
+      expect(b.p_data.color).toBe("#80e6bd");
+      expect(b.p_data.pocket_icon).toBe("🎒");
+      expect(b.p_data.cover).toBe("waves");
       expect(b.p_data.amount).toBe("6000.00");
       state.envelopes[0] = {
         ...state.envelopes[0],
@@ -206,31 +206,20 @@ test("personal pockets, pinned categories and private weekly cards work without 
   );
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
-  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
-  await page.getByLabel("ไอคอนกระเป๋า", { exact: true }).fill("🚀");
-  await page.getByLabel("ลายปก", { exact: true }).selectOption("dots");
-  await page.getByLabel("สีของกระเป๋า", { exact: true }).evaluate((el) => {
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )!.set!.call(el, "#8aaeff");
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  await page.getByRole("button", { name: /^แก้งบ / }).click();
+  await page.getByRole("button", {name:"เลือกรูปเดินทาง",exact:true}).click();
   await page.getByRole("button", { name: "บันทึกงบ", exact: true }).click();
   await expect(page.getByTestId("actual-cash")).toContainText("7,000.00");
-  await expect(
-    page.locator(".envelope-tile .pocket-cover").first(),
-  ).toHaveAttribute("data-cover", "dots");
-  await expect(
-    page.locator(".envelope-tile .pocket-cover").first().locator(".category-artwork"),
-  ).toBeVisible();
+  await expect(page.locator('.budget-tile .duck-mascot')).toHaveCount(1);
+  await page.reload();
+  await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
+  await page.getByRole("button", {name:/^แก้งบ /}).click();
+  await expect(page.getByRole("button", {name:"เลือกรูปเดินทาง",exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole("button", {name:"ปิด",exact:true}).click();
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).click();
   await expect(page.getByTestId("actual-spendable")).toContainText("6,500.00");
   await page.getByRole("tab", { name: "รายสัปดาห์", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "สัปดาห์นี้เทียบสัปดาห์ก่อน" }),
-  ).toBeVisible();
+  await expect(page.locator(".duck-postcard")).toHaveCount(0);
   await expect(page.locator(".dialog-overlay")).toHaveCount(0);
   await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
   expect(

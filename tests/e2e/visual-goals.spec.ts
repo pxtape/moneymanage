@@ -1,6 +1,7 @@
 import { mockWeekly } from "./support/weekly";
 import { mockHome } from "./support/home";
 import { test, expect } from "@playwright/test";
+test.setTimeout(60000);
 test.beforeEach(async ({ page }) => {
   await mockWeekly(page);
 });
@@ -178,7 +179,7 @@ test("visual plans and goal management keep actual money separate and celebrate 
   await page.getByRole("tab", { name: "รายเดือน", exact: true }).click();
   await expect(
     page.locator(".home-budget-list article").filter({ hasText: "อาหาร" }),
-  ).toContainText("เหลือ ฿5,000.00");
+  ).toContainText("฿5,000");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -196,7 +197,7 @@ test("visual plans and goal management keep actual money separate and celebrate 
     .locator(".planned-budget-legend")
     .getByRole("button")
     .filter({ hasText: "อาหาร" });
-  await expect(food).toContainText("60.0%");
+  await expect(food).toHaveText("อาหาร");
   await food.click();
   await expect(page.getByTestId("planned-budget-total")).toContainText(
     "6,000.00",

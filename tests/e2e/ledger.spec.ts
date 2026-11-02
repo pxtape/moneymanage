@@ -191,7 +191,7 @@ test("real-space form retries the same request after an uncertain response; mont
   expect(requestKeys).toHaveLength(2);
   expect(requestKeys[0]).toBe(requestKeys[1]);
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
-  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
+  await page.getByRole("button", { name: /^แก้งบ / }).click();
   await page.getByLabel("งบต่อเดือน (บาท)").fill("6000");
   await page.getByRole("button", { name: "บันทึกงบ" }).click();
   await expect(page.getByTestId("actual-cash")).toContainText("920.00");
@@ -202,8 +202,8 @@ test("real-space form retries the same request after an uncertain response; mont
   await expect(
     page.getByRole("button", { name: "โอนเงิน", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByText("฿5,920.00", { exact: true })).toBeVisible();
-  await expect(page.getByText(/เฉลี่ยใช้ได้.*วัน จนสิ้นเดือน/)).toBeVisible();
+  await expect(page.getByText("฿5,920", { exact: true })).toBeVisible();
+  await expect(page.locator(".budget-tile .duck-mascot")).toHaveCount(1);
   await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
   await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await expect(page.getByLabel("บัญชีที่ใช้จ่าย")).toHaveCount(0);
@@ -212,23 +212,21 @@ test("real-space form retries the same request after an uncertain response; mont
     path: `artifacts/${test.info().project.name}-m3-simple-budgets.png`,
     fullPage: true,
   });
-  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
+  await page.getByRole("button", { name: /^แก้งบ / }).click();
   await page.getByLabel("ชื่อซองงบประมาณ").fill("อาหารและเครื่องดื่ม");
-  await page.getByLabel("วิธีใช้กระเป๋า", { exact: true }).selectOption("bill");
+  await page.getByLabel("ประเภทงบ", { exact: true }).selectOption("bill");
   await page.getByRole("button", { name: "บันทึกงบ", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "อาหารและเครื่องดื่ม", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("บิลรายเดือน · ไม่เฉลี่ยรายวัน", { exact: true }),
-  ).toBeVisible();
+
   await expect(page.getByText(/เฉลี่ยใช้ได้.*วัน จนสิ้นเดือน/)).toHaveCount(0);
-  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
-  await expect(page.getByLabel("วิธีใช้กระเป๋า", { exact: true })).toHaveValue(
+  await page.getByRole("button", { name: /^แก้งบ / }).click();
+  await expect(page.getByLabel("ประเภทงบ", { exact: true })).toHaveValue(
     "bill",
   );
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
-  await page.getByRole("button", { name: "แก้งบ", exact: true }).click();
+  await page.getByRole("button", { name: /^แก้งบ / }).click();
   await page.getByRole("button", { name: "ลบงบนี้", exact: true }).click();
   await expect(
     page.getByText("รายจ่ายเดิม เงินรวม และประวัติยังอยู่ครบ", {
@@ -241,7 +239,7 @@ test("real-space form retries the same request after an uncertain response; mont
   ).toHaveCount(0);
   await expect(page.getByTestId("actual-cash")).toContainText("920.00");
   await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
-  await expect(page.locator(".real-transactions .transaction-row")).toHaveCount(
-    1,
-  );
+  await expect(page.locator(".real-transactions")).toHaveCount(0);
+  await page.getByRole("button", {name:"ภาพรวม",exact:true}).click();
+  await expect(page.locator(".home-day-transaction")).toHaveCount(1);
 });

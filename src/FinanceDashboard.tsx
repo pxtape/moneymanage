@@ -1,10 +1,11 @@
-import { DuckPlus, DuckStamp, PocketDuck, DuckLoading } from "./components/DuckCompanions";
+import { BudgetTile } from "./components/BudgetTile";
+import { GardenDoodle } from "./components/GardenDoodle";
+import { DuckPlus, DuckStamp, DuckLoading } from "./components/DuckCompanions";
 import { CategoryArtwork } from "./components/CategoryArtwork";
 import { DuckMascot } from "./components/DuckMascot";
 import { EntryMenu } from "./components/EntryMenu";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { useTheme } from "./theme";
-import { ThemePicker } from "./components/ThemePicker";
 import {
   lazy,
   Suspense,
@@ -15,23 +16,17 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
-  ArrowDownLeft,
   ChartNoAxesCombined,
   Star,
-  ArrowLeftRight,
-  ArrowRight,
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
   Home,
   LogOut,
-  Moon,
   Plus,
   RefreshCw,
   Settings,
   ShieldCheck,
-  Sun,
   Target,
   TrendingUp,
   Wallet,
@@ -62,11 +57,10 @@ import {
   decimalSatang,
   satangDecimal,
   totals,
-  budgetDaily,
   requestSignature,
   financialError,
-  type LedgerSnapshot,
   type LedgerTransaction,
+  type LedgerSnapshot,
 } from "./ledger";
 const Insights = lazy(() => import("./components/Insights"));
 const Comparison = lazy(() => import("./components/Comparison"));
@@ -76,12 +70,6 @@ const nav = [
   { id: "insights", label: "ข้อมูลเชิงลึก", icon: TrendingUp },
   { id: "compare", label: "เปรียบเทียบ", icon: ChartNoAxesCombined },
 ];
-const kindNames = {
-  expense: "รายจ่าย",
-  income: "รายรับ",
-  transfer: "โอนเงิน",
-  refund: "เงินคืน",
-};
 export default function FinanceDashboard({
   user,
   name,
@@ -96,7 +84,7 @@ export default function FinanceDashboard({
   const [page, setPage] = useState("home");
   const [month, setMonth] = useState(currentMonth);
   const [snapshot, setSnapshot] = useState<LedgerSnapshot | null>(null);
-  const { light, toggle: toggleTheme } = useTheme();
+  const { light } = useTheme();
   const [open, setOpen] = useState(false);
   const [entryMenu, setEntryMenu] = useState(false);
   const [action, setAction] = useState<FinanceAction | null>(null);
@@ -104,8 +92,6 @@ export default function FinanceDashboard({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [stale, setStale] = useState(false);
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
   const [categoryName, setCategoryName] = useState("");
   const [appearance, setAppearance] = useState(() => readAppearance(user.id));
   const [appearanceError, setAppearanceError] = useState("");
@@ -313,9 +299,6 @@ export default function FinanceDashboard({
       setBusy(false);
     }
   }
-  function theme() {
-    toggleTheme();
-  }
   function shiftMonth(direction: number) {
     const d = new Date(month + "T12:00:00Z");
     d.setUTCMonth(d.getUTCMonth() + direction);
@@ -324,14 +307,6 @@ export default function FinanceDashboard({
   }
   const summary = snapshot ? totals(snapshot) : null;
   const today = bangkokToday();
-  const rows =
-    snapshot?.transactions.filter(
-      (t) =>
-        (filter === "all" || t.kind === filter) &&
-        `${t.merchant} ${t.category_name_snapshot || snapshot.categories.find((c) => c.id === t.category_id)?.name || ""}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-    ) || [];
   const monthLabel = new Intl.DateTimeFormat("th-TH", {
     month: "long",
     year: "numeric",
@@ -341,98 +316,7 @@ export default function FinanceDashboard({
     setError("");
     setAction(next);
   }
-  function transactionRows(list: LedgerTransaction[]) {
-    const groups = [...new Set(list.map((t) => t.occurred_on))];
-    return list.length ? (
-      <div className="transaction-list grouped-transactions">
-        {groups.map((date) => (
-          <section className="transaction-day-group" key={date}>
-            <h3>
-              {date === today
-                ? "วันนี้"
-                : new Date(date + "T12:00:00Z").toLocaleDateString("th-TH", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    timeZone: "Asia/Bangkok",
-                  })}
-            </h3>
-            {list
-              .filter((t) => t.occurred_on === date)
-              .map((t) => {
-                const category =
-                  t.category_name_snapshot ||
-                  snapshot?.categories.find((c) => c.id === t.category_id)
-                    ?.name;
-                const detail =
-                  category && category !== t.merchant
-                    ? category
-                    : t.kind === "expense"
-                      ? t.tag === "want"
-                        ? "ความสุข"
-                        : t.tag === "need"
-                          ? "จำเป็น"
-                          : ""
-                      : "";
-                return (
-                  <button
-                    key={t.id}
-                    className="transaction-row ledger-row"
-                    onClick={() => openAction({ type: "details", item: t })}
-                  >
-                    <span
-                      className={`transaction-icon ${t.kind === "income" || t.kind === "refund" ? "mint" : t.kind === "transfer" ? "blue" : "orange"}`}
-                    >
-                      {t.kind === "income" || t.kind === "refund" ? (
-                        <ArrowDownLeft size={18} />
-                      ) : t.kind === "transfer" ? (
-                        <ArrowLeftRight size={18} />
-                      ) : (
-                        <ArrowUpRight size={18} />
-                      )}
-                    </span>
-                    <span className="transaction-name">
-                      <strong>
-                        <CategoryArtwork icon={t.category_icon_snapshot} name={category}/>
-                        {t.merchant}
-                      </strong>
-                      {detail && <small>{detail}</small>}
-                    </span>
-                    <span className="transaction-value">
-                      <strong
-                        className={
-                          t.kind === "income" || t.kind === "refund"
-                            ? "mint-text"
-                            : ""
-                        }
-                      >
-                        {t.kind === "expense"
-                          ? "-"
-                          : t.kind === "transfer"
-                            ? ""
-                            : "+"}
-                        {baht(decimalSatang(t.amount))}
-                      </strong>
-                    </span>
-                    <ChevronRight size={14} />
-                  </button>
-                );
-              })}
-          </section>
-        ))}
-      </div>
-    ) : (
-      <div className="ledger-empty">
-        <Wallet size={28} />
-        <h3>ยังไม่มีรายการที่จดในเดือนนี้</h3>
-        <p>เริ่มจากยอดเงินกับหมวดก็พอ</p>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={16} />
-          จดรายจ่ายแรก
-        </Button>
-      </div>
-    );
-  }
+
   return (
     <div className={light ? "app light" : "app"}>
       <aside className="sidebar">
@@ -543,12 +427,9 @@ export default function FinanceDashboard({
             >
               <RefreshCw size={17} />
             </button>
-            <button aria-label="สลับธีม" onClick={theme}>
-              {light ? <Moon size={18} /> : <Sun size={18} />}
-            </button>
           </div>
         </header>
-        <main className="real-main">
+        <main className="real-main"><GardenDoodle kind="flower" className="workspace-flower"/>
           {page !== "home" && (<div className="page-heading">
             <DuckMascot pose={page === "wallets" ? "save" : page === "settings" ? "wave" : "chart"} className="page-heading-duck"/>
             <div>
@@ -556,7 +437,7 @@ export default function FinanceDashboard({
                 {page === "home"
                   ? `สวัสดี, ${name}`
                   : page === "wallets"
-                    ? "แผนเดือนนี้ รายรับ รายจ่าย และเงินเหลือ"
+                    ? "งบและเงินเก็บ"
                     : page === "settings"
                       ? "ปรับพื้นที่ให้เป็นคุณ"
                       : page === "compare"
@@ -567,7 +448,7 @@ export default function FinanceDashboard({
                 {page === "home"
                   ? "เลือกวัน แล้วดูภาพเงินแบบรายวัน รายสัปดาห์ รายรอบเดือน และรายปี"
                   : page === "wallets"
-                    ? "วางแผนรายได้ รายจ่าย เงินออม และเงินสำรอง"
+                    ? ""
                     : page === "settings"
                       ? "จัดหมวดให้จดง่ายในแบบของคุณ"
                       : page === "compare"
@@ -674,19 +555,13 @@ export default function FinanceDashboard({
                   <div className={page === "home" ? "home-no-actions" : "ledger-action-bar"}>
                     {page === "home" ? null : (
                       <>
-                        <Button
-                          variant="outline"
-                          onClick={() => openAction({ type: "income" })}
-                        >
-                          <ArrowDownLeft size={16} />
-                          รายรับ
-                        </Button>
+
                         <Button
                           variant="outline"
                           onClick={() => openAction({ type: "envelope" })}
                         >
                           <Wallet size={16} />
-                          ตั้งงบประจำเดือน
+                          เพิ่มงบ
                         </Button>
                         {page === "wallets" && (
                           <Button
@@ -694,7 +569,7 @@ export default function FinanceDashboard({
                             onClick={() => openAction({ type: "goal" })}
                           >
                             <Target size={16} />
-                            ตั้งเป้าหมายเงินเก็บ
+                            เพิ่มเป้าหมาย
                           </Button>
                         )}
                       </>
@@ -704,7 +579,6 @@ export default function FinanceDashboard({
               )}
               {page === "home" && (
                 <HomeDashboard
-                  name={name}
                   revision={snapshot}
                   hidden={appearance.hideSummary}
                   onToggle={() =>
@@ -729,13 +603,17 @@ export default function FinanceDashboard({
               )}
               {page === "wallets" && (
                 <>
+                  <SavingsGarden
+                    goals={snapshot.goals}
+                    onAdd={() => openAction({ type: "goal" })}
+                    onEdit={(goal) => openAction({ type: "editGoal", goal })}
+                    onSave={(goal) => openAction({ type: "earmark", goal })}
+                  />
                   <section className="panel">
                     <div className="section-heading">
                       <div>
                         <h2>งบประจำเดือน</h2>
-                        <p>
-                          เกณฑ์เทียบการใช้จ่าย ไม่หักเงินรวม • ไม่ยกยอดข้ามเดือน
-                        </p>
+
                       </div>
                       <Wallet size={20} />
                     </div>
@@ -754,172 +632,18 @@ export default function FinanceDashboard({
                         </Button>
                       </div>
                     ) : (
-                      <div className="real-envelope-grid">
-                        {snapshot.envelopes.map((e) => {
-                          const remaining = decimalSatang(e.remaining);
-                          const daily =
-                            e.cadence === "daily" &&
-                            decimalSatang(e.allocated) > 0
-                              ? budgetDaily(e.remaining, month)
-                              : null;
-                          return (
-                            <div
-                              className="envelope-tile"
-                              key={e.id}
-                              style={
-                                {
-                                  "--pocket-color": e.color || "#80e6bd",
-                                } as React.CSSProperties
-                              }
-                            >
-                              <div
-                                className="pocket-cover"
-                                data-cover={e.cover || "waves"}
-                              >
-                                <PocketDuck name={e.name} icon={e.icon}/>
-                              </div>
-                              <div className="section-heading">
-                                <h3>
-                                  <span aria-hidden="true">
-                                    {e.icon || "👛"}
-                                  </span>{" "}
-                                  {e.name}
-                                </h3>
-                                <span
-                                  className={
-                                    remaining < 0
-                                      ? "overspent-label"
-                                      : "mint-text"
-                                  }
-                                >
-                                  {decimalSatang(e.allocated) === 0
-                                    ? "ยังไม่ตั้งวงเงิน"
-                                    : remaining < 0
-                                      ? "เกินงบ"
-                                      : "คงเหลือ"}
-                                </span>
-                              </div>
-                              <strong
-                                className={
-                                  remaining < 0 ? "overspent-label" : ""
-                                }
-                              >
-                                {decimalSatang(e.allocated) === 0
-                                  ? "ตั้งวงเงินเพื่อเปรียบเทียบ"
-                                  : baht(Math.abs(remaining))}
-                              </strong>
-                              <p>
-                                {decimalSatang(e.allocated) > 0
-                                  ? `งบเดือนนี้ ${baht(decimalSatang(e.allocated))} · `
-                                  : ""}
-                                ใช้ไป {baht(decimalSatang(e.spent))}
-                              </p>
-                              <div className="progress mint">
-                                <i
-                                  style={{
-                                    width: `${Math.max(0, Math.min(100, (decimalSatang(e.spent) / Math.max(1, decimalSatang(e.allocated))) * 100))}%`,
-                                  }}
-                                />
-                              </div>
-                              <p
-                                className={
-                                  remaining < 0
-                                    ? "overspent-label"
-                                    : "mint-text"
-                                }
-                              >
-                                {remaining < 0
-                                  ? "บันทึกต่อได้ตามจริง ลองทบทวนงบเมื่อสะดวก"
-                                  : decimalSatang(e.allocated) === 0
-                                    ? "ยังไม่ตั้งวงเงิน"
-                                    : e.cadence === "bill"
-                                      ? "บิลรายเดือน · ไม่เฉลี่ยรายวัน"
-                                      : e.cadence !== "daily"
-                                        ? "ใช้ตามโอกาส"
-                                        : daily === null
-                                          ? "สรุปเดือนที่ผ่านมา"
-                                          : `เฉลี่ยใช้ได้ ${baht(daily)} / วัน จนสิ้นเดือน (รวมวันนี้)`}
-                              </p>
-                              <small>
-                                {snapshot.categories
-                                  .filter((c) => c.envelope === e.id)
-                                  .map((c) => c.name)
-                                  .join(" · ") || "ยังไม่ได้เลือกหมวด"}
-                              </small>
-                              <div className="envelope-bottom">
-                                <small>เริ่มใหม่ทุกต้นเดือน</small>
-                                <button
-                                  className="text-link"
-                                  onClick={() =>
-                                    openAction({
-                                      type: "allocate",
-                                      envelope: e,
-                                    })
-                                  }
-                                >
-                                  แก้งบ <ArrowRight size={13} />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <div className="real-envelope-grid">{snapshot.envelopes.map(e=><BudgetTile key={e.id} name={e.name} icon={e.icon} color={e.color} target={e.allocated} spent={e.spent} remaining={e.remaining} onEdit={()=>openAction({type:"allocate",envelope:e})}/>)}</div>
                     )}
                   </section>
                   <PlannedBudgetChart
                     envelopes={snapshot.envelopes}
                     income={snapshot.income}
                   />
-                  <section className="panel real-transactions">
+                  {snapshot.contributions.length>0&&<section className="panel real-goals">
                     <div className="section-heading">
                       <div>
-                        <h2>รายการเดือนที่เลือก</h2>
-                        <p>
-                          แสดงล่าสุด {Math.min(100, snapshot.transaction_count)}{" "}
-                          จาก {snapshot.transaction_count} รายการ •
-                          ยอดรวมคำนวณจากทุกรายการ
-                        </p>
-                      </div>
-                      <button
-                        className="text-link"
-                        onClick={() => openAction({ type: "history" })}
-                      >
-                        ประวัติแก้ไข
-                      </button>
-                    </div>
-                    <div className="table-tools">
-                      <input
-                        aria-label="ค้นหารายการจริง"
-                        placeholder="ค้นหาในรายการที่แสดง"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                      />
-                      <select
-                        aria-label="กรองรายการจริง"
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                      >
-                        <option value="all">ทุกประเภท</option>
-                        {Object.entries(kindNames).map(([key, label]) => (
-                          <option value={key} key={key}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {transactionRows(rows)}
-                  </section>
-                  <SavingsGarden
-                    goals={snapshot.goals}
-                    onAdd={() => openAction({ type: "goal" })}
-                    onEdit={(goal) => openAction({ type: "editGoal", goal })}
-                    onSave={(goal) => openAction({ type: "earmark", goal })}
-                  />
-                  <section className="panel real-goals">
-                    <div className="section-heading">
-                      <div>
-                        <h2>เงินที่กันไว้แต่ละครั้ง</h2>
-                        <p>ปลดเงินที่กันไว้ได้ โดยไม่เพิ่มรายจ่าย</p>
+                        <h2>เงินที่กันไว้</h2>
+                        
                       </div>
                     </div>
                     {snapshot.contributions.map((c) => (
@@ -939,16 +663,15 @@ export default function FinanceDashboard({
                             )
                           }
                         >
-                          ปลดเงินที่กันไว้
+                          คืนเงินออม
                         </button>
                       </div>
                     ))}
-                  </section>
+                  </section>}
                 </>
               )}
               {page === "settings" && (
                 <>
-                  <ThemePicker />
                   <AppearanceSettings
                     value={appearance}
                     onChange={changeAppearance}
@@ -1043,9 +766,6 @@ export default function FinanceDashboard({
                   </section>
                   <ChangePassword email={user.email || ""} />
                   <section className="panel live-settings">
-                    <Button variant="outline" onClick={theme}>
-                      {light ? "ใช้โหมดมืด" : "ใช้โหมดสว่าง"}
-                    </Button>
                     <Button
                       variant="outline"
                       onClick={() => openAction({ type: "history" })}
@@ -1124,6 +844,7 @@ export default function FinanceDashboard({
         </main>
       </div>
       <nav className="bottom-nav">
+        <div className="bottom-nav-group">
         {nav.slice(0, 2).map((n) => (
           <button
             key={n.id}
@@ -1134,6 +855,7 @@ export default function FinanceDashboard({
             <span>{n.label}</span>
           </button>
         ))}
+        </div>
         <button
           className="mobile-add"
           aria-label="เพิ่มรายการ" aria-haspopup="dialog" aria-expanded={entryMenu}
@@ -1145,6 +867,7 @@ export default function FinanceDashboard({
           </span>
           <small>จด</small>
         </button>
+        <div className="bottom-nav-group">
         {nav.slice(2).map((n) => (
           <button
             key={n.id}
@@ -1162,6 +885,7 @@ export default function FinanceDashboard({
           <Settings size={20} />
           <span>ตั้งค่า</span>
         </button>
+        </div>
       </nav>
       {snapshot && (
         <>

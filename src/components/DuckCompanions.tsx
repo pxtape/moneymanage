@@ -1,10 +1,10 @@
+import { pocketPose } from "../pocket-artwork";
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Croissant, Moon, NotebookPen, Plus, Search } from 'lucide-react';
 import { duckMoment } from '../duck-companions';
 import { DuckMascot } from './DuckMascot';
 import { DuckFace } from './DuckFace';
-import { CategoryArtwork } from './CategoryArtwork';
 
 export function TimeDuck({className=''}:{className?:string}) {
  const [moment,setMoment]=useState(()=>duckMoment());
@@ -15,7 +15,7 @@ export function DuckPlus(){return <span className="duck-plus" aria-hidden="true"
 export function AmountDuck({value,busy=false,name,icon}:{value:string;busy?:boolean;name?:string;icon?:string}){return <span className={`amount-duck ${busy?'is-writing':''}`} aria-hidden="true" style={{'--duck-look':`${Math.min(value.length,12)-4}px`} as CSSProperties}><>{name&&!busy?<PocketDuck name={name} icon={icon}/>:<DuckMascot pose="journal"/>}</><i>{busy?'จดอยู่…':''}</i></span>}
 export function DuckStamp(){return <span className="duck-stamp" aria-hidden="true"><DuckMascot pose="journal"/><b>จดแล้ว</b></span>}
 export function PocketDuck({name,icon}:{name:string;icon?:string|null}){
- return <span className="pocket-duck" aria-hidden="true"><DuckMascot pose={/เครื่องดื่ม|กาแฟ/.test(name)?'drink':/อาหาร|ค่ากิน/.test(name)?'food':/เดินทาง|ท่องเที่ยว/.test(name)?'travel':'wave'}/><CategoryArtwork name={name} icon={icon}/></span>;
+ return <span className="pocket-duck" aria-hidden="true"><DuckMascot pose={pocketPose(icon,name)}/></span>;
 }
 export function DuckSavingsJar({saved,target}:{saved:number;target:number}){
  const clip=useId();const [drop,setDrop]=useState(false);const previous=useRef(saved);

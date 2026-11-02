@@ -118,6 +118,7 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
     route.fulfill({ json: state }),
   );
   await mockHome(page, () => state);
+  await page.route("**/rest/v1/transactions*", route => route.fulfill({json: state.transactions[0]}));
   let reject = true;
   await page.route("**/rest/v1/rpc/moneyspace_write", async (route) => {
     const body = route.request().postDataJSON();
@@ -183,9 +184,9 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
     .click();
   await expect(page.getByLabel("จำเป็น / ความสุข")).toHaveValue("want");
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
-  await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
-  await expect(page.locator(".ledger-row")).toContainText("อาหาร");
-  await expect(page.locator(".ledger-row")).not.toContainText("มื้อพัก");
+  await page.getByRole("button", { name: "ภาพรวม", exact: true }).click();
+  await expect(page.locator(".home-day-transaction")).toContainText("อาหาร");
+  await expect(page.locator(".home-day-transaction")).not.toContainText("มื้อพัก");
   await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
   await page.getByRole("button", { name: "tape", exact: true }).click();
   await page
@@ -201,9 +202,9 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
     page.getByRole("button", { name: "มื้อพัก", exact: true }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
-  await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
-  await expect(page.locator(".ledger-row")).toContainText("อาหาร");
-  await page.locator(".ledger-row").click();
+  await page.getByRole("button", { name: "ภาพรวม", exact: true }).click();
+  await expect(page.locator(".home-day-transaction")).toContainText("อาหาร");
+  await page.locator(".home-day-transaction").click();
   await page.getByRole("button", { name: "แก้ไข", exact: true }).click();
   await expect(page.getByLabel("หมวดรายการ")).toHaveValue("food");
   await expect(

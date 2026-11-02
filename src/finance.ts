@@ -10,3 +10,5 @@ export const demoTransactions:Transaction[]=[
 {id:'4',merchant:'บ้านและของใช้ • IKEA',category:'ช้อปปิ้ง',amountSatang:129000,kind:'expense',date:'2026-10-19',account:'บัญชีใช้จ่าย',envelope:'ไลฟ์สไตล์',tag:'want',scope:'personal'},
 {id:'5',merchant:'เติมเงินออมฉุกเฉิน',category:'โอนระหว่างบัญชี',amountSatang:500000,kind:'transfer',date:'2026-10-18',account:'บัญชีใช้จ่าย',envelope:'',tag:'need',scope:'personal'}];
 export const openingCash=8240000; // Current demo cash before session-only changes.
+
+export const shortBaht=(satang:number)=>new Intl.NumberFormat('th-TH',{style:'currency',currency:'THB',minimumFractionDigits:0,maximumFractionDigits:2}).format(satang/100);
