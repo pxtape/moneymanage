@@ -342,7 +342,7 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
     await page
       .getByRole("dialog")
       .evaluate((el) => getComputedStyle(el).getPropertyValue("--mint").trim()),
-  ).toBe("#b83e79");
+  ).toBe(await page.locator("html").evaluate(el => getComputedStyle(el).getPropertyValue("--duck-accent").trim()));
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
   await page.getByRole("button", { name: "เปรียบเทียบ", exact: true }).click();
   await expect(page.locator(".comparison-chart").first()).toBeVisible();

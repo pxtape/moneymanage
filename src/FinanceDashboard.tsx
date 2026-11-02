@@ -1,3 +1,4 @@
+import { DuckMascot } from "./components/DuckMascot";
 import { EntryMenu } from "./components/EntryMenu";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { useTheme } from "./theme";
@@ -18,19 +19,16 @@ import {
   ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
-  Check,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
   Home,
-  Layers3,
   LogOut,
   Moon,
   Plus,
   RefreshCw,
   Settings,
   ShieldCheck,
-  Sparkles,
   Sun,
   Target,
   TrendingUp,
@@ -440,7 +438,7 @@ export default function FinanceDashboard({
       <aside className="sidebar">
         <a className="brand" href="#" onClick={() => setPage("home")}>
           <span className="brand-mark">
-            <Layers3 size={23} />
+            <DuckMascot pose="wave" />
           </span>
           MONEY<span>SPACE</span>
         </a>
@@ -460,13 +458,13 @@ export default function FinanceDashboard({
               className={`nav-item ${page === n.id ? "active" : ""}`}
               onClick={() => setPage(n.id)}
             >
-              <n.icon size={20} />
+              <span className="notebook-nav-icon"><n.icon size={20} /></span>
               {n.label}
             </button>
           ))}
         </nav>
         <div className="sidebar-coach">
-          <Sparkles size={24} className="mint-text" />
+          <DuckMascot pose="tea" className="sidebar-duck" />
           <h3>จดน้อยลง เข้าใจเงินมากขึ้น</h3>
           <p>
             ตั้งงบเพื่อเห็นภาพการใช้จ่าย
@@ -552,6 +550,7 @@ export default function FinanceDashboard({
         </header>
         <main className="real-main">
           {page !== "home" && (<div className="page-heading">
+            <DuckMascot pose={page === "wallets" ? "save" : page === "settings" ? "wave" : "chart"} className="page-heading-duck"/>
             <div>
               <h1>
                 {page === "home"
@@ -611,7 +610,7 @@ export default function FinanceDashboard({
               role="status"
               className={`ledger-notice ${stale ? "stale" : ""}`}
             >
-              <Check size={16} />
+              <DuckMascot pose="journal" />
               <span>{notice}</span>
               <button aria-label="ปิดข้อความ" onClick={() => setNotice("")}>
                 ×
@@ -1117,7 +1116,7 @@ export default function FinanceDashboard({
             />
           )}
           <footer>
-            <span>✳ MONEYSPACE</span>
+            <span><DuckMascot pose="tail" className="footer-duck"/> MONEYSPACE</span>
             <span>
               <ShieldCheck size={13} />
               พื้นที่การเงินส่วนตัว
@@ -1132,7 +1131,7 @@ export default function FinanceDashboard({
             className={page === n.id ? "active" : ""}
             onClick={() => setPage(n.id)}
           >
-            <n.icon size={20} />
+            <span className="notebook-nav-icon"><n.icon size={20} /></span>
             <span>{n.label}</span>
           </button>
         ))}
@@ -1153,7 +1152,7 @@ export default function FinanceDashboard({
             className={page === n.id ? "active" : ""}
             onClick={() => setPage(n.id)}
           >
-            <n.icon size={20} />
+            <span className="notebook-nav-icon"><n.icon size={20} /></span>
             <span>{n.label}</span>
           </button>
         ))}

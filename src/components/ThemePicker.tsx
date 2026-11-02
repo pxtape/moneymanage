@@ -1,3 +1,4 @@
+import { DuckMascot } from "./DuckMascot";
 import { Check, Sun, Moon, Flower2 } from "lucide-react";
 import { useTheme, type Theme } from "../theme";
 const options: { id: Theme; label: string; note: string; icon: typeof Sun }[] =
@@ -5,16 +6,16 @@ const options: { id: Theme; label: string; note: string; icon: typeof Sun }[] =
     {
       id: "light",
       label: "สว่าง",
-      note: "สะอาด อ่านง่าย · ค่าเริ่มต้น",
+      note: "ครีมน้องเป็ด · ค่าเริ่มต้น",
       icon: Sun,
     },
     {
       id: "pink",
       label: "ชมพู",
-      note: "หวานนิด ๆ จดเงินให้อารมณ์ดี",
+      note: "ชมพูขนม · นุ่มนวลน่าใช้",
       icon: Flower2,
     },
-    { id: "dark", label: "เข้ม", note: "สบายตาในเวลากลางคืน", icon: Moon },
+    { id: "dark", label: "เข้ม", note: "โกโก้กลางคืน · สบายตา", icon: Moon },
   ];
 export function ThemePicker() {
   const { theme, setTheme, error } = useTheme();
@@ -35,7 +36,7 @@ export function ThemePicker() {
             onClick={() => setTheme(o.id)}
           >
             <span className="theme-swatch">
-              <o.icon size={22} />
+              <DuckMascot pose={o.id === "pink" ? "save" : o.id === "dark" ? "tea" : "wave"}/>
               {theme === o.id && <Check size={15} />}
             </span>
             <strong>{o.label}</strong>

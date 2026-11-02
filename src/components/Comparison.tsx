@@ -22,7 +22,7 @@ import {
 import { baht } from "../finance";
 import { financialError } from "../ledger";
 import { Button } from "./ui/button";
-const colors = { tape: "#2978c5", pat: "#cc4e8c" };
+const colors = { tape: "#66865d", pat: "#b66d8b" };
 const money = (v: unknown) => baht(Number(v));
 const axisMoney = (value: number) =>
   new Intl.NumberFormat("th-TH", { maximumFractionDigits: 0 }).format(

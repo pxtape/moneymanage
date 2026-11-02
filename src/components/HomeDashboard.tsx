@@ -1,3 +1,4 @@
+import { DuckMascot } from "./DuckMascot";
 import { useCallback, useEffect, useState } from "react";
 import {
   Bar,
@@ -22,6 +23,8 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  ChartPie,
+  ListFilter,
   Settings2,
 } from "lucide-react";
 import { supabase } from "../supabase";
@@ -37,13 +40,13 @@ import {
 import { Button } from "./ui/button";
 
 const colors = [
-  "#58d9aa",
-  "#799df3",
-  "#f2b76d",
-  "#e987a0",
-  "#a987e8",
-  "#70cbd1",
-  "#f58a67",
+  "#7c9570",
+  "#7b98ba",
+  "#e0ad4e",
+  "#cd8299",
+  "#a28abc",
+  "#68a5a1",
+  "#cd9064",
 ];
 const ranges: { id: HomeRange; label: string }[] = [
   { id: "day", label: "รายวัน" },
@@ -268,6 +271,7 @@ export function HomeDashboard({
         </div>
       )}
       <section className="home-balance-card">
+        <DuckMascot pose="wave" className="balance-duck"/>
         <div className="balance-card-heading">
           <span>รอบ {shortDate(data.cycle_from)}–{shortDate(data.cycle_through)}</span>
           <button
@@ -335,6 +339,7 @@ export function HomeDashboard({
                 className={dayTab === t.id ? "active" : ""}
                 onClick={() => setDayTab(t.id)}
               >
+                {t.id === "meter" ? <CalendarDays size={16} aria-hidden="true"/> : t.id === "pie" ? <ChartPie size={16} aria-hidden="true"/> : <ListFilter size={16} aria-hidden="true"/>}
                 {t.label}
               </button>
             ))}
@@ -350,6 +355,7 @@ export function HomeDashboard({
                 aria-valuenow={Math.round(percent)}
               >
                 <div className="gauge-chart">
+                  <DuckMascot pose="tea" className="meter-duck"/>
                   <svg className="daily-meter-svg" viewBox="0 0 300 250" aria-hidden="true">
                     {Array.from({ length: 49 }, (_, i) => <line key={i} x1={i % 4 === 0 ? 252 : 258} y1="130" x2="270" y2="130" transform={`rotate(${150 + i * 5} 150 130)`} stroke={homeMoney(dailyTarget) > 0 && i <= percent * .48 ? "var(--mint)" : "var(--meter-track)"} strokeWidth={i % 4 === 0 ? 3 : 2} strokeLinecap="round" />)}
                     <g transform={`rotate(${150 + percent * 2.4} 150 130)`}><line x1="250" y1="130" x2="274" y2="130" stroke="#ef697c" strokeWidth="5" strokeLinecap="round" /></g>
@@ -410,7 +416,7 @@ export function HomeDashboard({
                     ))}
                   </div>
                 ) : (
-                  <div className="home-empty">ยังไม่มีรายการในวันที่เลือก</div>
+                  <div className="home-empty"><DuckMascot pose="journal" className="empty-duck"/><strong>ยังไม่มีรายการในวันที่เลือก</strong><small>พร้อมเมื่อไหร่ แตะ + แล้วจดได้เลย</small></div>
                 )}
               </div>
             </div>
@@ -474,7 +480,7 @@ export function HomeDashboard({
                       style={{
                         background:
                           t.type === "income"
-                            ? "#58d9aa"
+                            ? "#7c9570"
                             : colors[(i + 2) % colors.length],
                       }}
                     />
@@ -527,7 +533,7 @@ export function HomeDashboard({
                 <Bar
                   name="สัปดาห์นี้"
                   dataKey="current"
-                  fill="#58d9aa"
+                  fill="#7c9570"
                   radius={[5, 5, 0, 0]}
                 />
               </BarChart>
@@ -621,7 +627,7 @@ export function HomeDashboard({
                   <Bar
                     name="รายรับ"
                     dataKey="income"
-                    fill="#58d9aa"
+                    fill="#7c9570"
                     radius={[4, 4, 0, 0]}
                   />
                   <Bar
@@ -651,7 +657,7 @@ export function HomeDashboard({
                   <Line
                     name="เงินเก็บ"
                     dataKey="savings"
-                    stroke="#799df3"
+                    stroke="#9b8aba"
                     strokeWidth={3}
                     dot={{ r: 4 }}
                   />

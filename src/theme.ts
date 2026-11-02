@@ -18,10 +18,10 @@ function apply() {
       ?.setAttribute(
         "content",
         state.theme === "dark"
-          ? "#062e37"
+          ? "#292623"
           : state.theme === "pink"
-            ? "#fff5f8"
-            : "#f3f7f5",
+            ? "#fff2f3"
+            : "#fff9ed",
       );
     document.documentElement.style.colorScheme =
       state.theme === "dark" ? "dark" : "light";
