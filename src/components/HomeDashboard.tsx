@@ -1,3 +1,4 @@
+import gaugePointer from '../assets/duck-gauge-pointer.webp';
 import { GardenDoodle } from './GardenDoodle';
 import gardenHeader from '../assets/duck-garden-header.webp';
 import { BudgetTile } from "./BudgetTile";
@@ -216,6 +217,11 @@ export function HomeDashboard({
     );
   const amount = (value: string) => (hidden ? "••••" : baht(homeMoney(value)));
   const percent = homeMoney(dailyTarget) > 0 ? gaugePercent(data.daily.expenses, dailyTarget) : 0;
+  const pointerAngle = (150 + percent * 2.4) * Math.PI / 180;
+  const pointerX = 150 + Math.cos(pointerAngle) * 120;
+  const pointerY = 130 + Math.sin(pointerAngle) * 120;
+  const faceX = Math.max(32, Math.min(268, pointerX + Math.cos(pointerAngle) * 12)) - pointerX;
+  const faceY = Math.max(32, Math.min(218, pointerY + Math.sin(pointerAngle) * 12)) - pointerY;
   const budgetTotal = homeMoney(data.cycle.budget_total);
   const budgetSpent = homeMoney(data.cycle.budget_spent);
   const week = data.weekly.days.map((d, i) => ({
@@ -377,7 +383,10 @@ export function HomeDashboard({
 
                   <svg className="daily-meter-svg" viewBox="0 0 300 250" aria-hidden="true">
                     {Array.from({ length: 49 }, (_, i) => <line key={i} x1={i % 4 === 0 ? 252 : 258} y1="130" x2="270" y2="130" transform={`rotate(${150 + i * 5} 150 130)`} stroke={homeMoney(dailyTarget) > 0 && i <= percent * .48 ? "#e8bf60" : "var(--meter-track)"} strokeWidth={i % 4 === 0 ? 3 : 2} strokeLinecap="round" />)}
-                    <g className="duck-meter-pointer" style={{transform:`translate(${150+Math.cos((150+percent*2.4)*Math.PI/180)*120}px, ${130+Math.sin((150+percent*2.4)*Math.PI/180)*120}px) rotate(${percent*.6-30}deg)`}}><foreignObject x="-21" y="-24" width="42" height="43"><DuckMascot pose="meter" className="painted-gauge-duck"/></foreignObject></g>
+                    <g className="duck-meter-pointer" data-progress={percent} transform={`translate(${pointerX} ${pointerY})`}>
+                      <line x1={faceX} y1={faceY} x2="0" y2="0" stroke="#6b4f3f" strokeWidth="2.5" strokeLinecap="round"/>
+                      <image className="gauge-pointer-illustration" href={gaugePointer} x={faceX-27} y={faceY-27} width="54" height="54" transform={`rotate(${(percent-50)*.2} ${faceX} ${faceY})`}/>
+                    </g>
                   </svg>
                   <div className="gauge-garden painted-gauge-garden" aria-hidden="true"><GardenDoodle kind="flower"/><GardenDoodle kind="sprout"/><GardenDoodle kind="flower"/></div>
                   <div className="gauge-value">

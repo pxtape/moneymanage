@@ -54,6 +54,9 @@ test('daily home edits expense and income from an earlier month and refreshes th
   await expect(page.locator('.bottom-nav .navigation-artwork')).toHaveCount(5);
   expect(await page.locator('.home-painted-header').evaluate((img:HTMLImageElement)=>img.complete&&img.naturalWidth>0)).toBe(true);
   if(test.info().project.name==='mobile'){
+    const art=await page.locator('.bottom-nav .navigation-artwork').first().boundingBox();
+    expect(art!.width).toBeGreaterThanOrEqual(44);
+    expect(await page.locator('.bottom-nav-group>button').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(10.5);
     const row=await page.locator('.home-day-transaction').first().boundingBox();
     const nav=await page.locator('.bottom-nav').boundingBox();
     expect(row!.y+row!.height).toBeLessThan(nav!.y);
@@ -139,6 +142,19 @@ test('daily home edits expense and income from an earlier month and refreshes th
   await expect(page.getByRole('button',{name:'น้องช่วยอ่านกราฟ',exact:true})).toHaveCount(0);
   await expect(page.locator('.duck-postcard')).toHaveCount(0);
   if(test.info().project.name==='mobile'){const box=await page.locator('.bottom-nav .mobile-add').boundingBox();expect(Math.abs(box!.x+box!.width/2-195)).toBeLessThan(1);const plus=await page.locator('.bottom-nav .duck-plus>svg:last-child').boundingBox();expect(Math.abs(plus!.x+plus!.width/2-195)).toBeLessThan(1);}
+  rows[0].amount='200.00';state.expenses='200.00';state.cash=(Number(state.income)-200).toFixed(2);
+  await page.reload();
+  await targetInput.fill('250');
+  await page.getByRole('button',{name:'ตั้งเป้า',exact:true}).click();
+  await expect(page.getByRole('meter')).toHaveAttribute('aria-valuenow','80');
+  await expect(page.locator('.duck-meter-pointer foreignObject')).toHaveCount(0);
+  await expect(page.locator('.gauge-pointer-illustration')).toBeVisible();
+  const marker=await page.locator('.duck-meter-pointer').evaluate((el:SVGGElement)=>{const m=el.transform.baseVal.consolidate()!.matrix;return {x:m.e,y:m.f};});
+  expect(marker.x).toBeCloseTo(264.127,2);expect(marker.y).toBeCloseTo(92.918,2);
+  const face=await page.locator('.gauge-pointer-illustration').boundingBox();expect(face!.width).toBeGreaterThan(36);
+  if(await page.getByRole('button',{name:'ปิดข้อความ',exact:true}).isVisible())await page.getByRole('button',{name:'ปิดข้อความ',exact:true}).click();
+  await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
+  await page.screenshot({animations:'disabled',path:'artifacts/'+test.info().project.name+'-clear-pointer-80.png'});
   rows.length=0;
   await page.reload();
   await expect(page.locator('.home-empty [data-duck-pose=rest]')).toBeVisible();
