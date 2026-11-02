@@ -1,3 +1,4 @@
+import { PersonDuck, DuckLoading } from "./DuckCompanions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
@@ -140,8 +141,8 @@ export default function Comparison({
           <p>เทียบจากที่จดจริง หมวดของเราไม่จำเป็นต้องเหมือนกัน</p>
         </div>
         <div className="comparison-legend">
-          <span style={{ color: colors.tape }}>● Tape</span>
-          <span style={{ color: colors.pat }}>● Pat</span>
+          <span style={{ color: colors.tape }}><PersonDuck person="tape"/> Tape</span>
+          <span style={{ color: colors.pat }}><PersonDuck person="pat"/> Pat</span>
         </div>
       </div>
       {error || calculated?.error ? (
@@ -154,7 +155,7 @@ export default function Comparison({
         </section>
       ) : !data ? (
         <section className="panel" role="status">
-          กำลังโหลดข้อมูลสรุปที่ได้รับอนุญาต…
+          <DuckLoading text="กำลังเปิดสมุดที่เราอนุญาตให้ดู…"/>
         </section>
       ) : data.status === "unavailable" ? (
         <section className="panel">

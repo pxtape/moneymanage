@@ -1,7 +1,11 @@
+import { TimeDuck, ChartDuck, DuckLoading, PocketDuck } from "./DuckCompanions";
+import { DuckCalendar } from "./DuckCalendar";
+import { WeeklyDigest } from "./WeeklyDigest";
+import { useTheme } from "../theme";
 import { CategoryArtwork } from "./CategoryArtwork";
 import { DuckFace } from "./DuckFace";
 import { DuckMascot } from "./DuckMascot";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -83,16 +87,20 @@ const monthName = (date: string) =>
 
 export function HomeDashboard({
   revision,
+  name = "ฉัน",
   hidden,
   onToggle,
   onTransaction,
 }: {
   revision: unknown;
+  name?: string;
   hidden: boolean;
   onToggle: () => void;
   onTransaction: (id: string) => Promise<void>;
 }) {
   const today = bangkokToday();
+  const {light}=useTheme();
+  const [calendar,setCalendar]=useState(false);
   const [date, setDate] = useState(today);
   const [range, setRange] = useState<HomeRange>("day");
   const [dayTab, setDayTab] = useState<(typeof dayTabs)[number]["id"]>("meter");
@@ -138,13 +146,20 @@ export function HomeDashboard({
       setOpening(null);
     }
   }
+  const currentDate = useRef(date);
+  currentDate.current = date;
+  const request = useRef(0);
   const load = useCallback(async () => {
+    if (currentDate.current !== date) return;
+    const generation = ++request.current;
     setLoading(true);
     setError("");
     const { data: result, error } = await supabase.rpc("moneyspace_home_v2", {
       p_date: date,
     });
+    if (generation !== request.current || currentDate.current !== date) return;
     if (error || !result) {
+      setData(previous => previous?.selected_date === date ? previous : null);
       setError("โหลดภาพรวมตามวันที่เลือกไม่ได้ กรุณาลองใหม่");
       setLoading(false);
       return;
@@ -152,9 +167,11 @@ export function HomeDashboard({
     setData(result as HomeDashboardData);
     setLoading(false);
   }, [date]);
+  const invalidateLoad = useCallback(() => { request.current++; }, []);
   useEffect(() => {
     void load();
-  }, [load, revision]);
+    return invalidateLoad;
+  }, [load, revision, invalidateLoad]);
   useEffect(() => {
     let active = true;
     void supabase.rpc("moneyspace_daily_target").then(({ data: value, error }) => {
@@ -192,16 +209,13 @@ export function HomeDashboard({
   if (loading && !data)
     return (
       <section className="panel home-dashboard-loading">
-        กำลังคำนวณภาพรวมตามวันที่เลือก…
+        <DuckLoading text="กำลังเปิดสมุดตามวันที่เลือก…"/>
       </section>
     );
   if (!data)
     return (
       <section className="panel home-dashboard-loading" role="alert">
-        {error}
-        <button className="text-link" onClick={() => void load()}>
-          ลองใหม่
-        </button>
+        <DuckLoading failed text={error} onRetry={()=>void load()}/>
       </section>
     );
   const amount = (value: string) => (hidden ? "••••" : baht(homeMoney(value)));
@@ -221,6 +235,7 @@ export function HomeDashboard({
   }));
   return (
     <div className="home-period-dashboard" data-testid="home-period-dashboard">
+      {calendar&&<DuckCalendar date={date} today={today} revision={revision} onSelect={setDate} onClose={()=>setCalendar(false)}/>}
       <section className="home-date-toolbar panel">
         <div>
           <div className="home-date-controls">
@@ -231,13 +246,14 @@ export function HomeDashboard({
               <CalendarDays size={17} />
               <input
                 aria-label="วันที่ของภาพรวม"
+                tabIndex={-1}
                 type="date"
                 min="2000-01-01"
                 max={today}
                 value={date}
                 onChange={(e) => e.target.value && setDate(e.target.value)}
               />
-              <strong>{fullDate(date)}</strong>
+              <button className="duck-date-open" type="button" aria-label="เปิดปฏิทิน" onClick={e=>{e.preventDefault();setCalendar(true)}}><strong>{fullDate(date)}</strong></button>
             </label>
             <button
               aria-label="วันถัดไป"
@@ -273,7 +289,7 @@ export function HomeDashboard({
         </div>
       )}
       <section className="home-balance-card">
-        <DuckMascot pose="wave" className="balance-duck"/>
+        <TimeDuck className="balance-duck"/>
         <div className="balance-card-heading">
           <span>รอบ {shortDate(data.cycle_from)}–{shortDate(data.cycle_through)}</span>
           <button
@@ -418,7 +434,7 @@ export function HomeDashboard({
                     ))}
                   </div>
                 ) : (
-                  <div className="home-empty"><DuckMascot pose="journal" className="empty-duck"/><strong>ยังไม่มีรายการในวันที่เลือก</strong><small>พร้อมเมื่อไหร่ แตะ + แล้วจดได้เลย</small></div>
+                  <div className="home-empty"><span className="duck-resting"><DuckMascot pose="sleep" className="empty-duck"/><i>z z</i></span><strong>ยังไม่มีรายการในวันที่เลือก</strong><small>พร้อมเมื่อไหร่ ค่อยจดกัน · แตะ + เพื่อเริ่ม</small></div>
                 )}
               </div>
             </div>
@@ -512,6 +528,7 @@ export function HomeDashboard({
           <div className="section-heading">
             <div>
               <h2>สัปดาห์นี้เทียบสัปดาห์ก่อน</h2>
+              <ChartDuck message={hidden ? "เปิดแสดงยอดเพื่อให้น้องช่วยอ่านตัวเลข" : `รายจ่ายสุทธิที่จดในช่วงนี้ ${baht(week.reduce((sum,d)=>sum+d.current,0))} · วันที่ไม่มีรายการอาจยังไม่ได้จด`}/>
               <p>
                 อาทิตย์–เสาร์ · {shortDate(data.weekly.from)}–
                 {shortDate(data.weekly.through)}
@@ -543,6 +560,7 @@ export function HomeDashboard({
           </div>
         </section>
       )}
+      {range === "week" && <WeeklyDigest today={date} name={name} light={light} revision={revision}/>}
       {range === "month" && (
         <section className="panel home-range-panel">
           <div className="month-cycle-head">
@@ -582,7 +600,7 @@ export function HomeDashboard({
                 <article key={b.id}>
                   <div>
                     <span>
-                      <CategoryArtwork icon={b.icon} name={b.name}/><strong>{b.name}</strong>
+                      <PocketDuck icon={b.icon} name={b.name}/><strong>{b.name}</strong>
                     </span>
                     <b
                       className={

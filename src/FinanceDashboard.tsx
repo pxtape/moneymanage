@@ -1,3 +1,4 @@
+import { DuckPlus, DuckStamp, PocketDuck, DuckLoading } from "./components/DuckCompanions";
 import { CategoryArtwork } from "./components/CategoryArtwork";
 import { DuckMascot } from "./components/DuckMascot";
 import { EntryMenu } from "./components/EntryMenu";
@@ -609,7 +610,7 @@ export default function FinanceDashboard({
               role="status"
               className={`ledger-notice ${stale ? "stale" : ""}`}
             >
-              <DuckMascot pose="journal" />
+              {!stale ? <DuckStamp/> : <DuckMascot pose="journal"/>}
               <span>{notice}</span>
               <button aria-label="ปิดข้อความ" onClick={() => setNotice("")}>
                 ×
@@ -632,9 +633,7 @@ export default function FinanceDashboard({
           )}
           {!snapshot ? (
             <div className="panel ledger-loading">
-              {error
-                ? "ยังไม่มีข้อมูลที่ยืนยันจากเซิร์ฟเวอร์"
-                : "กำลังโหลดข้อมูลจริงจาก Supabase…"}
+              <DuckLoading failed={!!error} text={error ? "ยังเปิดสมุดไม่ได้ ลองโหลดใหม่กัน" : "กำลังเปิดสมุดจาก Supabase…"} onRetry={error?()=>void load().catch(()=>setError("โหลดข้อมูลไม่ได้ กรุณาลองใหม่")):undefined}/>
             </div>
           ) : (
             <>
@@ -705,6 +704,7 @@ export default function FinanceDashboard({
               )}
               {page === "home" && (
                 <HomeDashboard
+                  name={name}
                   revision={snapshot}
                   hidden={appearance.hideSummary}
                   onToggle={() =>
@@ -776,7 +776,7 @@ export default function FinanceDashboard({
                                 className="pocket-cover"
                                 data-cover={e.cover || "waves"}
                               >
-                                <span aria-hidden="true"><CategoryArtwork icon={e.icon} name={e.name}/></span>
+                                <PocketDuck name={e.name} icon={e.icon}/>
                               </div>
                               <div className="section-heading">
                                 <h3>
@@ -1136,12 +1136,12 @@ export default function FinanceDashboard({
         ))}
         <button
           className="mobile-add"
-          aria-label="เพิ่มรายการ"
+          aria-label="เพิ่มรายการ" aria-haspopup="dialog" aria-expanded={entryMenu}
           disabled={busy || !snapshot?.accounts.length}
           onClick={() => setEntryMenu(true)}
         >
           <span>
-            <Plus size={24} />
+            <DuckPlus/>
           </span>
           <small>จด</small>
         </button>
@@ -1166,7 +1166,7 @@ export default function FinanceDashboard({
       {snapshot && (
         <>
           <EntryMenu open={entryMenu} onOpenChange={setEntryMenu} goals={snapshot.goals} onExpense={() => setOpen(true)} onIncome={() => openAction({type:"income"})} onSavings={goal => openAction(goal ? {type:"earmark",goal} : {type:"goal"})} />
-          <button className="desktop-entry-add" aria-label="เพิ่มรายการ" onClick={() => setEntryMenu(true)} disabled={busy || !snapshot.accounts.length}><Plus size={26}/></button>
+          <button className="desktop-entry-add" aria-label="เพิ่มรายการ" onClick={() => setEntryMenu(true)} disabled={busy || !snapshot.accounts.length}><DuckPlus/></button>
           {editingCategory && (
             <CategoryDialog
               key={editingCategory.id}
