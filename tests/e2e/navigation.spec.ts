@@ -70,7 +70,7 @@ test("custom category can be reused without typing a transaction title", async (
   await page
     .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
     .click();
-  await expect(page.locator(".main-amount")).toContainText("82,325.00");
+  await expect(page.locator(".main-amount")).toContainText(/82,325(?:\.00)?/);
 });
 test("validates missing category, bad amounts, and supports optional detail", async ({
   page,

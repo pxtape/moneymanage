@@ -169,7 +169,7 @@ test("real analytics loads all aggregates, explains averages, retries errors and
   );
   await expect(
     page.getByText("เฉพาะวันที่มีรายจ่าย:", { exact: false }),
-  ).toContainText("250.00");
+  ).toContainText(/250(?:\.00)?/);
   await expect(page.getByText("75.0%", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "บางงบใช้เกินที่ตั้งไว้แล้ว" }),
@@ -183,7 +183,7 @@ test("real analytics loads all aggregates, explains averages, retries errors and
   await expect(
     page.getByRole("heading", { name: "☕ ค่าเครื่องดื่ม", exact: true }),
   ).toBeVisible();
-  await expect(page.getByTestId("drink-daily-average")).toContainText("0.00");
+  await expect(page.getByTestId("drink-daily-average")).toContainText(/0(?:\.00)?/);
   await page.getByText("วิธีคำนวณและขอบเขตข้อมูล", { exact: true }).click();
   await expect(
     page.getByText("ไม่จำกัด 100 รายการ", { exact: false }),

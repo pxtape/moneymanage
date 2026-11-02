@@ -11,7 +11,7 @@ export function TimeDuck({className=''}:{className?:string}) {
  useEffect(()=>{const timer=window.setInterval(()=>setMoment(duckMoment()),60000);return()=>window.clearInterval(timer)},[]);
  return <span className={`time-duck ${className}`} data-moment={moment} aria-hidden="true"><DuckMascot pose={moment==='day'?'journal':moment==='night'?'blanket':'breakfast'}/>{moment==='night'?<Moon className="time-duck-prop" size={14}/>:moment==='morning'?<Croissant className="time-duck-prop" size={17}/>:<NotebookPen className="time-duck-prop" size={15}/>}</span>;
 }
-export function DuckPlus(){return <span className="duck-plus" aria-hidden="true"><svg viewBox="0 0 60 66"><g transform="translate(30 32)"><DuckFace/></g></svg><Plus size={20}/></span>}
+export function DuckPlus(){return <span className="duck-plus" aria-hidden="true"><span className="duck-plus-painted"><DuckMascot pose="wave"/></span><Plus size={20}/></span>}
 export function AmountDuck({value,busy=false,name,icon}:{value:string;busy?:boolean;name?:string;icon?:string}){return <span className={`amount-duck ${busy?'is-writing':''}`} aria-hidden="true" style={{'--duck-look':`${Math.min(value.length,12)-4}px`} as CSSProperties}><>{name&&!busy?<PocketDuck name={name} icon={icon}/>:<DuckMascot pose="journal"/>}</><i>{busy?'จดอยู่…':''}</i></span>}
 export function DuckStamp(){return <span className="duck-stamp" aria-hidden="true"><DuckMascot pose="journal"/><b>จดแล้ว</b></span>}
 export function PocketDuck({name,icon}:{name:string;icon?:string|null}){

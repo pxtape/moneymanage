@@ -318,7 +318,7 @@ export default function FinanceDashboard({
   }
 
   return (
-    <div className={light ? "app light" : "app"}>
+    <div className={`app ${light ? "light" : ""} ${page === "home" ? "home-focused" : ""}`}>
       <aside className="sidebar">
         <a className="brand" href="#" onClick={() => setPage("home")}>
           <span className="brand-mark">

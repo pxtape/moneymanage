@@ -171,7 +171,7 @@ test("selectable single pocket artwork and pinned categories work without changi
   });
   await page.goto("/");
   await expect(page.locator(".quick-action-grid")).toHaveCount(0);
-  await expect(page.getByTestId("actual-spendable")).toContainText("6,500.00");
+  await expect(page.getByTestId("actual-spendable")).toContainText(/6,500(?:\.00)?/);
   await expect(
     page.getByRole("button", { name: "ครอบครัว", exact: true }),
   ).toHaveCount(0);
@@ -180,7 +180,7 @@ test("selectable single pocket artwork and pinned categories work without changi
   await page.reload();
   await expect(page.getByTestId("actual-cash")).toContainText("••••");
   await page.getByRole("button", { name: "แสดงยอดสรุป", exact: true }).click();
-  await expect(page.getByTestId("actual-cash")).toContainText("7,000.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/7,000(?:\.00)?/);
   await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
   await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("123");
@@ -209,7 +209,7 @@ test("selectable single pocket artwork and pinned categories work without changi
   await page.getByRole("button", { name: /^แก้งบ / }).click();
   await page.getByRole("button", {name:"เลือกรูปเดินทาง",exact:true}).click();
   await page.getByRole("button", { name: "บันทึกงบ", exact: true }).click();
-  await expect(page.getByTestId("actual-cash")).toContainText("7,000.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/7,000(?:\.00)?/);
   await expect(page.locator('.budget-tile .duck-mascot')).toHaveCount(1);
   await page.reload();
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
@@ -217,7 +217,7 @@ test("selectable single pocket artwork and pinned categories work without changi
   await expect(page.getByRole("button", {name:"เลือกรูปเดินทาง",exact:true})).toHaveAttribute('aria-pressed','true');
   await page.getByRole("button", {name:"ปิด",exact:true}).click();
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).click();
-  await expect(page.getByTestId("actual-spendable")).toContainText("6,500.00");
+  await expect(page.getByTestId("actual-spendable")).toContainText(/6,500(?:\.00)?/);
   await page.getByRole("tab", { name: "รายสัปดาห์", exact: true }).click();
   await expect(page.locator(".duck-postcard")).toHaveCount(0);
   await expect(page.locator(".dialog-overlay")).toHaveCount(0);

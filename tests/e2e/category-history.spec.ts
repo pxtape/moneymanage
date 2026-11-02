@@ -145,7 +145,7 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
     });
   });
   await page.goto("/");
-  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await expect(page.getByTestId("actual-expenses")).toContainText(/80(?:\.00)?/);
   await expect(
     page.getByRole("button", { name: "ครอบครัว", exact: true }),
   ).toHaveCount(0);
@@ -187,7 +187,7 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).click();
   await expect(page.locator(".home-day-transaction")).toContainText("อาหาร");
   await expect(page.locator(".home-day-transaction")).not.toContainText("มื้อพัก");
-  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await expect(page.getByTestId("actual-expenses")).toContainText(/80(?:\.00)?/);
   await page.getByRole("button", { name: "tape", exact: true }).click();
   await page
     .getByRole("button", { name: "แก้ไขหมวด มื้อพัก", exact: true })

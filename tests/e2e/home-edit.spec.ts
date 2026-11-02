@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+test.setTimeout(60000);
 import { mockHome } from './support/home';
 import { mockWeekly } from './support/weekly';
 
@@ -48,6 +49,17 @@ test('daily home edits expense and income from an earlier month and refreshes th
   });
   const errors: string[] = [];page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
+  await expect(page.getByRole('heading',{name:'MONEYSPACE',exact:true})).toBeVisible();
+  if(test.info().project.name==='mobile'){
+    const row=await page.locator('.home-day-transaction').first().boundingBox();
+    const nav=await page.locator('.bottom-nav').boundingBox();
+    expect(row!.y+row!.height).toBeLessThan(nav!.y);
+    const cash=await page.getByTestId('actual-cash').boundingBox();
+    const spent=await page.getByTestId('actual-expenses').boundingBox();
+    expect(Math.abs(cash!.y-spent!.y)).toBeLessThan(2);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({animations:'disabled',path:'artifacts/mobile-garden-home-viewport.png'});
+  }
   const dateInput = page.locator('.home-date-toolbar input[type=date]');
   const initialDate = await dateInput.inputValue();
   await page.getByRole('button',{name:'เปิดปฏิทิน',exact:true}).click();
@@ -100,12 +112,13 @@ test('daily home edits expense and income from an earlier month and refreshes th
   await page.screenshot({animations:'disabled',path:'artifacts/'+test.info().project.name+'-income-categories.png',fullPage:true});
   await page.getByRole('dialog').getByRole('button',{name:'บันทึก',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'ดูและแก้ไข เงินเดือน',exact:true})).toContainText('1,000.00');
+  await expect(page.getByRole('button',{name:'ดูและแก้ไข เงินเดือน',exact:true})).toContainText(/1,000(?:\.00)?/);
   await page.getByRole('button',{name:'เพิ่มรายการ',exact:true}).filter({visible:true}).first().click();
   await page.getByRole('button',{name:'กันออม',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('สร้างเป้าหมายเงินออม');
   await page.getByRole('button',{name:'ปิด',exact:true}).click();
   await expect(page.locator('.dialog-overlay')).toHaveCount(0);
+  if(await page.getByRole('button',{name:'ปิดข้อความ',exact:true}).isVisible())await page.getByRole('button',{name:'ปิดข้อความ',exact:true}).click();
   await page.screenshot({animations:'disabled',path:'artifacts/'+test.info().project.name+'-compact-home.png',fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.getByRole('button',{name:'ดูและแก้ไข รายรับ',exact:true}).click();

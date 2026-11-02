@@ -171,8 +171,8 @@ test("visual plans and goal management keep actual money separate and celebrate 
     });
   });
   await page.goto("/");
-  await expect(page.getByTestId("actual-income")).toContainText("30,000.00");
-  await expect(page.getByTestId("actual-cash")).toContainText("29,000.00");
+  await expect(page.getByTestId("actual-income")).toContainText(/30,000(?:\.00)?/);
+  await expect(page.getByTestId("actual-cash")).toContainText(/29,000(?:\.00)?/);
   await expect(
     page.getByRole("button", { name: "วางแผนแบบง่าย", exact: true }),
   ).toHaveCount(0);
@@ -191,7 +191,7 @@ test("visual plans and goal management keep actual money separate and celebrate 
   });
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
   await expect(page.getByTestId("planned-budget-total")).toContainText(
-    "10,000.00",
+    /10,000(?:\.00)?/,
   );
   const food = page
     .locator(".planned-budget-legend")
@@ -200,11 +200,11 @@ test("visual plans and goal management keep actual money separate and celebrate 
   await expect(food).toHaveText("อาหาร");
   await food.click();
   await expect(page.getByTestId("planned-budget-total")).toContainText(
-    "6,000.00",
+    /6,000(?:\.00)?/,
   );
   await food.click();
   await expect(page.getByTestId("planned-budget-total")).toContainText(
-    "10,000.00",
+    /10,000(?:\.00)?/,
   );
   await expect(
     page.locator(".planned-donut .recharts-sector").first(),
@@ -236,7 +236,7 @@ test("visual plans and goal management keep actual money separate and celebrate 
   await expect(
     page.getByRole("progressbar", { name: "เป้าหมาย ทริปทะเล", exact: true }),
   ).toHaveAttribute("aria-valuenow", "40");
-  await expect(page.getByTestId("actual-cash")).toContainText("29,000.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/29,000(?:\.00)?/);
   await page
     .locator(".savings-garden")
     .getByRole("button", { name: "กันเงินออม", exact: true })
@@ -269,6 +269,6 @@ test("visual plans and goal management keep actual money separate and celebrate 
     .getByRole("button", { name: "ยืนยันลบเป้าหมาย", exact: true })
     .click();
   await expect(page.locator(".garden-goal")).toHaveCount(0);
-  await expect(page.getByTestId("actual-cash")).toContainText("29,000.00");
-  await expect(page.getByTestId("actual-expenses")).toContainText("1,000.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/29,000(?:\.00)?/);
+  await expect(page.getByTestId("actual-expenses")).toContainText(/1,000(?:\.00)?/);
 });

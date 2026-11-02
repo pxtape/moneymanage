@@ -302,7 +302,7 @@ test("comparison requires mutual sharing, charts fit both screens, and legacy th
     }),
   ).toBeVisible();
   await expect(page.getByTestId("comparison-wealth")).toContainText(
-    "12,000.00",
+    /12,000(?:\.00)?/,
   );
   await expect(page.getByTestId("comparison-categories")).toContainText(
     "อาหารและเครื่องดื่ม",

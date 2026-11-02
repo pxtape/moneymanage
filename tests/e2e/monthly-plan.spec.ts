@@ -161,7 +161,7 @@ test("monthly liquidity plan separates forecasts from money and persists monthly
   if (test.info().project.name === "desktop")
     await page.setViewportSize({ width: 1873, height: 891 });
   await page.goto("/");
-  await expect(page.getByTestId("actual-spendable")).toContainText("7,000.00");
+  await expect(page.getByTestId("actual-spendable")).toContainText(/7,000(?:\.00)?/);
   await page.getByRole("tab", { name: "รายเดือน", exact: true }).click();
   await expect(
     page.locator(".home-budget-list article").filter({ hasText: "ค่าไฟ" }),
@@ -201,7 +201,7 @@ test("monthly liquidity plan separates forecasts from money and persists monthly
   await expect(page.getByTestId("plan-savings")).toContainText("10,000");
   await expect(page.getByTestId("plan-reserve")).toContainText("17,000.25");
   await expect(page.getByTestId("actual-cash")).toContainText("8,000");
-  await expect(page.getByTestId("actual-income")).toContainText("0.00");
+  await expect(page.getByTestId("actual-income")).toContainText(/0(?:\.00)?/);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

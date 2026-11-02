@@ -1,9 +1,8 @@
+import gardenHeader from '../assets/duck-garden-header.webp';
 import { BudgetTile } from "./BudgetTile";
-import { GardenDoodle, DuckPerch } from "./GardenDoodle";
 import { DuckLoading } from "./DuckCompanions";
 import { DuckCalendar } from "./DuckCalendar";
 import { CategoryArtwork } from "./CategoryArtwork";
-import { DuckFace } from "./DuckFace";
 import { DuckMascot } from "./DuckMascot";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -34,7 +33,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { supabase } from "../supabase";
-import { baht, parseAmount } from "../finance";
+import { baht, parseAmount, shortBaht } from "../finance";
 import { bangkokToday } from "../categories";
 import {
   gaugePercent,
@@ -232,6 +231,11 @@ export function HomeDashboard({
   return (
     <div className="home-period-dashboard" data-testid="home-period-dashboard">
       {calendar&&<DuckCalendar date={date} today={today} revision={revision} onSelect={setDate} onClose={()=>setCalendar(false)}/>}
+      <header className="home-garden-header">
+        <div className="home-wordmark"><h1>MONEYSPACE</h1><p>Little duck, little steps <span>♥</span></p></div>
+        <img className="home-painted-header" src={gardenHeader} alt="น้องเป็ดหูกระต่ายเกาะขอบสมุดกับสวนดอกไม้"/>
+      </header>
+      <div className="home-overview-sheet">
       <section className="home-date-toolbar panel">
         <div>
           <div className="home-date-controls">
@@ -285,7 +289,6 @@ export function HomeDashboard({
         </div>
       )}
       <section className="home-balance-card">
-        <DuckPerch/>
         <div className="balance-card-heading">
           <span>รอบ {shortDate(data.cycle_from)}–{shortDate(data.cycle_through)}</span>
           <button
@@ -296,29 +299,29 @@ export function HomeDashboard({
           </button>
         </div>
         <div className="balance-primary">
-          <span>เงินหักออม</span>
+          <span>ใช้ได้หลังหักออม</span>
           <strong data-testid="actual-spendable">
-            {amount(data.money.spendable)}
+            {hidden ? "••••" : shortBaht(homeMoney(data.money.spendable))}
           </strong>
         </div>
         <div className="balance-parts">
           <span>
             เงินรวม
-            <strong data-testid="actual-cash">{amount(data.money.total)}</strong>
+            <strong data-testid="actual-cash">{hidden ? "••••" : shortBaht(homeMoney(data.money.total))}</strong>
           </span>
           <span>
-            เงินได้
-            <strong data-testid="actual-income">{amount(data.cycle.income)}</strong>
+            รายรับรอบนี้
+            <strong data-testid="actual-income">{hidden ? "••••" : shortBaht(homeMoney(data.cycle.income))}</strong>
           </span>
           <span>
-            เงินจ่าย
+            รายจ่ายรอบนี้
             <strong data-testid="actual-expenses">
-              {amount(data.cycle.expenses)}
+              {hidden ? "••••" : shortBaht(homeMoney(data.cycle.expenses))}
             </strong>
           </span>
         </div>
         <small>
-          ออม {amount(data.money.savings)} · รวมอยู่ในเงินรวมแล้ว
+          ออมแล้ว {amount(data.money.savings)}
         </small>
       </section>
       <div
@@ -338,8 +341,9 @@ export function HomeDashboard({
           </button>
         ))}
       </div>
+      </div>
       {range === "day" && (
-        <section className="panel home-range-panel garden-panel"><GardenDoodle kind={range==="day"?"flower":"sprout"} className="panel-sprig"/>
+        <section className="panel home-range-panel garden-panel home-day-panel">
           <div
             className="home-subtabs"
             role="tablist"
@@ -369,12 +373,13 @@ export function HomeDashboard({
                 aria-valuenow={Math.round(percent)}
               >
                 <div className="gauge-chart">
-                  <DuckMascot pose="tea" className="meter-duck"/>
+
                   <svg className="daily-meter-svg" viewBox="0 0 300 250" aria-hidden="true">
-                    {Array.from({ length: 49 }, (_, i) => <line key={i} x1={i % 4 === 0 ? 252 : 258} y1="130" x2="270" y2="130" transform={`rotate(${150 + i * 5} 150 130)`} stroke={homeMoney(dailyTarget) > 0 && i <= percent * .48 ? "var(--mint)" : "var(--meter-track)"} strokeWidth={i % 4 === 0 ? 3 : 2} strokeLinecap="round" />)}
-                    <g className="duck-meter-pointer" style={{transform:`translate(${150+Math.cos((150+percent*2.4)*Math.PI/180)*120}px, ${130+Math.sin((150+percent*2.4)*Math.PI/180)*120}px) rotate(${percent*.6-30}deg)`}}><DuckFace/></g>
+                    {Array.from({ length: 49 }, (_, i) => <line key={i} x1={i % 4 === 0 ? 252 : 258} y1="130" x2="270" y2="130" transform={`rotate(${150 + i * 5} 150 130)`} stroke={homeMoney(dailyTarget) > 0 && i <= percent * .48 ? "#e8bf60" : "var(--meter-track)"} strokeWidth={i % 4 === 0 ? 3 : 2} strokeLinecap="round" />)}
+                    <g className="duck-meter-pointer" style={{transform:`translate(${150+Math.cos((150+percent*2.4)*Math.PI/180)*120}px, ${130+Math.sin((150+percent*2.4)*Math.PI/180)*120}px) rotate(${percent*.6-30}deg)`}}><foreignObject x="-21" y="-24" width="42" height="43"><DuckMascot pose="wave" className="painted-gauge-duck"/></foreignObject></g>
                   </svg>
-                  <div>
+                  <div className="gauge-garden painted-gauge-garden" aria-hidden="true"><span style={{backgroundImage:`url(${gardenHeader})`}}/><span style={{backgroundImage:`url(${gardenHeader})`}}/></div>
+                  <div className="gauge-value">
                     <span>ใช้วันนี้</span>
                     <strong>{amount(data.daily.expenses)}</strong>
                     <small>{homeMoney(dailyTarget) > 0 ? `${Math.round(percent)}% ของเป้า` : "ตั้งเป้ารายวันของคุณ"}</small>
@@ -390,7 +395,7 @@ export function HomeDashboard({
               <div className="daily-activity">
                 <div className="section-heading">
                   <div>
-                    <h2>รายการรับ–จ่าย</h2>
+                    <h2>{date === today ? "วันนี้" : shortDate(date)}</h2>
                     <p>{data.daily.transactions.length} รายการ</p>
                   </div>
                 </div>
@@ -560,10 +565,10 @@ export function HomeDashboard({
           <div className="month-cycle-head">
             <div>
               <span>
-                รายได้ในรอบ<strong>{amount(data.cycle.income)}</strong>
+                รายได้ในรอบ<strong>{hidden ? "••••" : shortBaht(homeMoney(data.cycle.income))}</strong>
               </span>
               <span>
-                รายจ่ายในรอบ<strong>{amount(data.cycle.expenses)}</strong>
+                รายจ่ายในรอบ<strong>{hidden ? "••••" : shortBaht(homeMoney(data.cycle.expenses))}</strong>
               </span>
             </div>
             <div className="month-budget-meter">

@@ -11,4 +11,4 @@ export const demoTransactions:Transaction[]=[
 {id:'5',merchant:'เติมเงินออมฉุกเฉิน',category:'โอนระหว่างบัญชี',amountSatang:500000,kind:'transfer',date:'2026-10-18',account:'บัญชีใช้จ่าย',envelope:'',tag:'need',scope:'personal'}];
 export const openingCash=8240000; // Current demo cash before session-only changes.
 
-export const shortBaht=(satang:number)=>new Intl.NumberFormat('th-TH',{style:'currency',currency:'THB',minimumFractionDigits:0,maximumFractionDigits:2}).format(satang/100);
+export const shortBaht=(satang:number)=>new Intl.NumberFormat('th-TH',{style:'currency',currency:'THB',minimumFractionDigits:satang%100===0?0:2,maximumFractionDigits:2}).format(satang/100);

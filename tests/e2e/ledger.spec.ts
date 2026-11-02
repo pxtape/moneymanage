@@ -170,7 +170,7 @@ test("real-space form retries the same request after an uncertain response; mont
     });
   });
   await page.goto("/");
-  await expect(page.getByTestId("actual-cash")).toContainText("1,000.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/1,000(?:\.00)?/);
   expect(initializationKeys.length).toBeGreaterThan(0);
   expect(new Set(initializationKeys).size).toBe(1);
   await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
@@ -181,21 +181,21 @@ test("real-space form retries the same request after an uncertain response; mont
     .getByRole("button", { name: "บันทึกรายจ่าย", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("ยังไม่ได้ยืนยัน");
-  await expect(page.getByTestId("actual-cash")).toContainText("1,000.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/1,000(?:\.00)?/);
   await page
     .getByRole("button", { name: "บันทึกรายจ่าย", exact: true })
     .click();
   await expect(page.getByRole("status")).toContainText("Supabase ยืนยัน");
-  await expect(page.getByTestId("actual-cash")).toContainText("920.00");
-  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/920(?:\.00)?/);
+  await expect(page.getByTestId("actual-expenses")).toContainText(/80(?:\.00)?/);
   expect(requestKeys).toHaveLength(2);
   expect(requestKeys[0]).toBe(requestKeys[1]);
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
   await page.getByRole("button", { name: /^แก้งบ / }).click();
   await page.getByLabel("งบต่อเดือน (บาท)").fill("6000");
   await page.getByRole("button", { name: "บันทึกงบ" }).click();
-  await expect(page.getByTestId("actual-cash")).toContainText("920.00");
-  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/920(?:\.00)?/);
+  await expect(page.getByTestId("actual-expenses")).toContainText(/80(?:\.00)?/);
   await expect(
     page.getByRole("button", { name: "เพิ่มบัญชี", exact: true }),
   ).toHaveCount(0);
@@ -237,8 +237,8 @@ test("real-space form retries the same request after an uncertain response; mont
   await expect(
     page.getByRole("heading", { name: "อาหารและเครื่องดื่ม", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByTestId("actual-cash")).toContainText("920.00");
-  await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
+  await expect(page.getByTestId("actual-cash")).toContainText(/920(?:\.00)?/);
+  await expect(page.getByTestId("actual-expenses")).toContainText(/80(?:\.00)?/);
   await expect(page.locator(".real-transactions")).toHaveCount(0);
   await page.getByRole("button", {name:"ภาพรวม",exact:true}).click();
   await expect(page.locator(".home-day-transaction")).toHaveCount(1);
