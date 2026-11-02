@@ -335,10 +335,8 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
   await expect(page.locator("html")).toHaveAttribute("data-theme", "pink");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "pink");
-  await page
-    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
+  await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   expect(
     await page

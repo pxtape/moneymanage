@@ -218,6 +218,7 @@ test("mocked authenticated onboarding waits for server and persistent category c
       },
     }),
   );
+  await page.route("**/rest/v1/rpc/moneyspace_daily_target", route => route.fulfill({json:"0.00"}));
   await page.route("**/rest/v1/rpc/moneyspace_home", (route) => {
     const date = route.request().postDataJSON().p_date;
     return route.fulfill({
@@ -303,7 +304,7 @@ test("mocked authenticated onboarding waits for server and persistent category c
   await page.getByLabel("ยอดเงินเริ่มต้น (บาท)").fill("1000.25");
   await page.getByRole("button", { name: "สร้างพื้นที่ของฉัน" }).click();
   await expect(
-    page.getByRole("heading", { name: "สวัสดี, ทดสอบ" }),
+    page.getByTestId("home-period-dashboard"),
   ).toBeVisible();
   await expect(page.getByTestId("actual-cash")).toContainText("1,000.25");
   await page.getByRole("button", { name: "ทดสอบ", exact: true }).click();

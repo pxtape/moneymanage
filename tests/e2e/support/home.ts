@@ -16,6 +16,12 @@ type Snapshot = {
   }>;
 };
 export async function mockHome(page: Page, getSnapshot: () => Snapshot) {
+  let target = "150.00";
+  await page.route("**/rest/v1/rpc/moneyspace_daily_target", route => {
+    const amount = route.request().postDataJSON()?.p_amount;
+    if (amount !== undefined) target = amount;
+    return route.fulfill({json: target});
+  });
   await page.route("**/rest/v1/rpc/moneyspace_home", (route) => {
     const state = getSnapshot();
     const date = route.request().postDataJSON().p_date as string;

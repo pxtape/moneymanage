@@ -173,10 +173,8 @@ test("real-space form retries the same request after an uncertain response; mont
   await expect(page.getByTestId("actual-cash")).toContainText("1,000.00");
   expect(initializationKeys.length).toBeGreaterThan(0);
   expect(new Set(initializationKeys).size).toBe(1);
-  await page
-    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
+  await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("80");
   await page.getByRole("button", { name: "🍜 อาหาร", exact: true }).click();
   await page
@@ -206,10 +204,8 @@ test("real-space form retries the same request after an uncertain response; mont
   ).toHaveCount(0);
   await expect(page.getByText("฿5,920.00", { exact: true })).toBeVisible();
   await expect(page.getByText(/เฉลี่ยใช้ได้.*วัน จนสิ้นเดือน/)).toBeVisible();
-  await page
-    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
+  await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await expect(page.getByLabel("บัญชีที่ใช้จ่าย")).toHaveCount(0);
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
   await page.screenshot({

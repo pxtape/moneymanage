@@ -25,7 +25,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { supabase } from "../supabase";
-import { baht } from "../finance";
+import { baht, parseAmount } from "../finance";
 import { bangkokToday } from "../categories";
 import {
   budgetPercent,
@@ -80,13 +80,11 @@ export function HomeDashboard({
   revision,
   hidden,
   onToggle,
-  onExpense,
   onTransaction,
 }: {
   revision: unknown;
   hidden: boolean;
   onToggle: () => void;
-  onExpense: () => void;
   onTransaction: (id: string) => Promise<void>;
 }) {
   const today = bangkokToday();
@@ -97,6 +95,31 @@ export function HomeDashboard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [dailyTarget, setDailyTarget] = useState("0.00");
+  const [targetDraft, setTargetDraft] = useState("0.00");
+  const [targetError, setTargetError] = useState("");
+  const [savingTarget, setSavingTarget] = useState(false);
+  async function saveDailyTarget(e: React.FormEvent) {
+    e.preventDefault();
+    const cents = /^0+(\.0{1,2})?$/.test(targetDraft) ? 0 : parseAmount(targetDraft);
+    if (cents === null || cents > 99999999999) {
+      setTargetError("ใช้จำนวนเงินตั้งแต่ 0 และทศนิยมไม่เกิน 2 ตำแหน่ง");
+      return;
+    }
+    setSavingTarget(true);
+    setTargetError("");
+    try {
+      const value = (cents / 100).toFixed(2);
+      const { data: saved, error } = await supabase.rpc("moneyspace_daily_target", { p_amount: value });
+      if (error || typeof saved !== "string" || homeMoney(saved) !== cents) throw new Error();
+      setDailyTarget(saved);
+      setTargetDraft(saved);
+    } catch {
+      setTargetError("ยังไม่ได้ยืนยันเป้ารายวัน กรุณาลองใหม่");
+    } finally {
+      setSavingTarget(false);
+    }
+  }
   const [opening, setOpening] = useState<string | null>(null);
   async function openTransaction(id: string) {
     if (opening) return;
@@ -127,6 +150,19 @@ export function HomeDashboard({
   useEffect(() => {
     void load();
   }, [load, revision]);
+  useEffect(() => {
+    let active = true;
+    void supabase.rpc("moneyspace_daily_target").then(({ data: value, error }) => {
+      if (!active) return;
+      if (error || typeof value !== "string") {
+        setTargetError("โหลดเป้ารายวันไม่ได้ กรุณาโหลดหน้าใหม่");
+      } else {
+        setDailyTarget(value);
+        setTargetDraft(value);
+      }
+    });
+    return () => { active = false; };
+  }, []);
   function shiftDay(amount: number) {
     const d = new Date(date + "T12:00:00Z");
     d.setUTCDate(d.getUTCDate() + amount);
@@ -164,7 +200,7 @@ export function HomeDashboard({
       </section>
     );
   const amount = (value: string) => (hidden ? "••••" : baht(homeMoney(value)));
-  const percent = gaugePercent(data.daily.expenses, data.daily.target);
+  const percent = homeMoney(dailyTarget) > 0 ? gaugePercent(data.daily.expenses, dailyTarget) : 0;
   const budgetTotal = homeMoney(data.cycle.budget_total);
   const budgetSpent = homeMoney(data.cycle.budget_spent);
   const week = data.weekly.days.map((d, i) => ({
@@ -182,7 +218,6 @@ export function HomeDashboard({
     <div className="home-period-dashboard" data-testid="home-period-dashboard">
       <section className="home-date-toolbar panel">
         <div>
-          <span className="eyebrow">ดูเงินในอดีตได้เป็นวัน</span>
           <div className="home-date-controls">
             <button aria-label="วันก่อน" onClick={() => shiftDay(-1)}>
               <ChevronLeft size={18} />
@@ -197,7 +232,7 @@ export function HomeDashboard({
                 value={date}
                 onChange={(e) => e.target.value && setDate(e.target.value)}
               />
-              <strong>{date === today ? "วันนี้" : fullDate(date)}</strong>
+              <strong>{fullDate(date)}</strong>
             </label>
             <button
               aria-label="วันถัดไป"
@@ -208,8 +243,8 @@ export function HomeDashboard({
             </button>
           </div>
         </div>
-        <div className="cycle-setting">
-          <Settings2 size={16} />
+        <details className="cycle-setting">
+          <summary><Settings2 size={14} /> รอบเดือน</summary>
           <label>
             เริ่มรอบเดือนวันที่{" "}
             <select
@@ -225,7 +260,7 @@ export function HomeDashboard({
               ))}
             </select>
           </label>
-        </div>
+        </details>
       </section>
       {error && (
         <div className="ledger-error" role="alert">
@@ -234,7 +269,7 @@ export function HomeDashboard({
       )}
       <section className="home-balance-card">
         <div className="balance-card-heading">
-          <span>สถานะ ณ {fullDate(data.selected_date)}</span>
+          <span>รอบ {shortDate(data.cycle_from)}–{shortDate(data.cycle_through)}</span>
           <button
             aria-label={hidden ? "แสดงยอดสรุป" : "ซ่อนยอดสรุป"}
             onClick={onToggle}
@@ -243,33 +278,29 @@ export function HomeDashboard({
           </button>
         </div>
         <div className="balance-primary">
-          <span>เงินเหลือหลังแยกออม</span>
+          <span>เงินหักออม</span>
           <strong data-testid="actual-spendable">
             {amount(data.money.spendable)}
           </strong>
         </div>
         <div className="balance-parts">
           <span>
-            เงินรวมทั้งหมด
+            เงินรวม
             <strong data-testid="actual-cash">{amount(data.money.total)}</strong>
           </span>
           <span>
-            แยกออมไว้<strong>{amount(data.money.savings)}</strong>
-          </span>
-          <span>
-            รายได้สุทธิในรอบ
+            เงินได้
             <strong data-testid="actual-income">{amount(data.cycle.income)}</strong>
           </span>
           <span>
-            รายจ่ายสุทธิในรอบ
+            เงินจ่าย
             <strong data-testid="actual-expenses">
               {amount(data.cycle.expenses)}
             </strong>
           </span>
         </div>
         <small>
-          รอบ {shortDate(data.cycle_from)}–{shortDate(data.cycle_through)} ·
-          เงินรวมมีเงินออมอยู่แล้ว จึงไม่บวกซ้ำ
+          ออม {amount(data.money.savings)} · รวมอยู่ในเงินรวมแล้ว
         </small>
       </section>
       <div
@@ -319,41 +350,22 @@ export function HomeDashboard({
                 aria-valuenow={Math.round(percent)}
               >
                 <div className="gauge-chart">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[{ v: percent }, { v: 100 - percent }]}
-                        dataKey="v"
-                        startAngle={210}
-                        endAngle={-30}
-                        innerRadius="76%"
-                        outerRadius="96%"
-                        stroke="none"
-                        isAnimationActive
-                      >
-                        <Cell
-                          fill={
-                            percent > 100
-                              ? "#eb657b"
-                              : percent > 80
-                                ? "#f2b76d"
-                                : "#58d9aa"
-                          }
-                        />
-                        <Cell fill="var(--track)" />
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <svg className="daily-meter-svg" viewBox="0 0 300 250" aria-hidden="true">
+                    {Array.from({ length: 49 }, (_, i) => <line key={i} x1={i % 4 === 0 ? 252 : 258} y1="130" x2="270" y2="130" transform={`rotate(${150 + i * 5} 150 130)`} stroke={homeMoney(dailyTarget) > 0 && i <= percent * .48 ? "var(--mint)" : "var(--meter-track)"} strokeWidth={i % 4 === 0 ? 3 : 2} strokeLinecap="round" />)}
+                    <g transform={`rotate(${150 + percent * 2.4} 150 130)`}><line x1="250" y1="130" x2="274" y2="130" stroke="#ef697c" strokeWidth="5" strokeLinecap="round" /></g>
+                  </svg>
                   <div>
                     <span>ใช้วันนี้</span>
                     <strong>{amount(data.daily.expenses)}</strong>
-                    <small>{Math.round(percent)}% ของเป้า</small>
+                    <small>{homeMoney(dailyTarget) > 0 ? `${Math.round(percent)}% ของเป้า` : "ตั้งเป้ารายวันของคุณ"}</small>
                   </div>
                 </div>
-                <p>
-                  เป้าหมาย <strong>{amount(data.daily.target)}</strong> / วัน
-                </p>
-                <small>คำนวณจากงบรวม ÷ จำนวนวันในรอบเดือน</small>
+                <form className="daily-target-form" onSubmit={e => void saveDailyTarget(e)}>
+                  <label>เป้า / วัน <input aria-label="เป้ารายวัน (บาท)" inputMode="decimal" value={targetDraft} onChange={e => setTargetDraft(e.target.value)} disabled={savingTarget} /></label>
+                  <Button type="submit" disabled={savingTarget}>{savingTarget ? "กำลังบันทึก…" : "ตั้งเป้า"}</Button>
+                </form>
+                {targetError && <small role="alert" className="form-error">{targetError}</small>}
+                <small>เป้าส่วนตัว แยกจากงบรายเดือน · 0 คือไม่ตั้งเป้า</small>
               </div>
               <div className="daily-activity">
                 <div className="section-heading">
@@ -361,10 +373,6 @@ export function HomeDashboard({
                     <h2>รายการรับ–จ่าย</h2>
                     <p>{data.daily.transactions.length} รายการในวันที่เลือก · แตะเพื่อแก้ไข</p>
                   </div>
-                  <Button onClick={onExpense}>
-                    <ArrowUpRight size={16} />
-                    จดรายจ่าย
-                  </Button>
                 </div>
                 {data.daily.transactions.length ? (
                   <div className="home-day-list">

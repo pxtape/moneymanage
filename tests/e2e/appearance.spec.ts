@@ -170,15 +170,7 @@ test("personal pockets, pinned categories and private weekly cards work without 
     });
   });
   await page.goto("/");
-  expect(
-    await page
-      .locator(".quick-action-grid")
-      .evaluate(
-        (el) =>
-          el.getBoundingClientRect().width /
-          el.parentElement!.getBoundingClientRect().width,
-      ),
-  ).toBeGreaterThan(0.9);
+  await expect(page.locator(".quick-action-grid")).toHaveCount(0);
   await expect(page.getByTestId("actual-spendable")).toContainText("6,500.00");
   await expect(
     page.getByRole("button", { name: "ครอบครัว", exact: true }),
@@ -189,10 +181,8 @@ test("personal pockets, pinned categories and private weekly cards work without 
   await expect(page.getByTestId("actual-cash")).toContainText("••••");
   await page.getByRole("button", { name: "แสดงยอดสรุป", exact: true }).click();
   await expect(page.getByTestId("actual-cash")).toContainText("7,000.00");
-  await page
-    .getByRole("button", { name: "จดรายจ่าย", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
+  await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("123");
   await page
     .getByRole("button", { name: "ปักหมวด เครื่องดื่ม", exact: true })

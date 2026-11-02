@@ -175,10 +175,8 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
   await expect(page.locator(".category-mappings")).toContainText(
     "ความสุข · Want",
   );
-  await page
-    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
+  await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await page.getByRole("button", { name: "🥗 มื้อพัก", exact: true }).click();
   await page
     .getByRole("button", { name: "เพิ่มเติม เฉพาะเมื่ออยากจด", exact: true })
@@ -197,10 +195,8 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
   await expect(page.getByRole("dialog")).toContainText("ประวัติเก่า");
   await page.getByRole("button", { name: "ยืนยันลบหมวด", exact: true }).click();
   await expect(page.locator(".category-mappings")).not.toContainText("มื้อพัก");
-  await page
-    .getByRole("button", { name: "เพิ่มรายจ่าย", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
+  await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await expect(
     page.getByRole("button", { name: "🥗 มื้อพัก", exact: true }),
   ).toHaveCount(0);

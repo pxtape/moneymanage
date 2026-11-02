@@ -1,3 +1,4 @@
+import { EntryMenu } from "./components/EntryMenu";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { useTheme } from "./theme";
 import { ThemePicker } from "./components/ThemePicker";
@@ -97,6 +98,7 @@ export default function FinanceDashboard({
   const [snapshot, setSnapshot] = useState<LedgerSnapshot | null>(null);
   const { light, toggle: toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [entryMenu, setEntryMenu] = useState(false);
   const [action, setAction] = useState<FinanceAction | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -517,7 +519,7 @@ export default function FinanceDashboard({
               prefs={appearance}
               light={light}
               onAction={(a) => {
-                if (a === "entry") setOpen(true);
+                if (a === "entry") setEntryMenu(true);
                 else setPage(a === "budget" ? "wallets" : "compare");
               }}
               onSettings={() => setPage("settings")}
@@ -549,7 +551,7 @@ export default function FinanceDashboard({
           </div>
         </header>
         <main className="real-main">
-          <div className="page-heading">
+          {page !== "home" && (<div className="page-heading">
             <div>
               <h1>
                 {page === "home"
@@ -603,6 +605,7 @@ export default function FinanceDashboard({
               </Button>
             </div>
           </div>
+          )}
           {notice && (
             <div
               role="status"
@@ -671,43 +674,8 @@ export default function FinanceDashboard({
                       </span>
                     </div>
                   )}
-                  <div className="ledger-action-bar">
-                    {page === "home" ? (
-                      <div className="quick-action-grid">
-                        <button onClick={() => setOpen(true)}>
-                          <span className="action-mint">
-                            <Plus size={23} />
-                          </span>
-                          จดรายจ่าย
-                        </button>
-                        <button onClick={() => openAction({ type: "income" })}>
-                          <span className="action-blue">
-                            <ArrowDownLeft size={23} />
-                          </span>
-                          รับเงิน
-                        </button>
-                        <button
-                          onClick={() =>
-                            openAction(
-                              snapshot.goals[0]
-                                ? { type: "earmark", goal: snapshot.goals[0] }
-                                : { type: "goal" },
-                            )
-                          }
-                        >
-                          <span className="action-gold">
-                            <Target size={23} />
-                          </span>
-                          กันออม
-                        </button>
-                        <button onClick={() => setPage("wallets")}>
-                          <span className="action-rose">
-                            <Wallet size={23} />
-                          </span>
-                          ดูกระเป๋า
-                        </button>
-                      </div>
-                    ) : (
+                  <div className={page === "home" ? "home-no-actions" : "ledger-action-bar"}>
+                    {page === "home" ? null : (
                       <>
                         <Button
                           variant="outline"
@@ -747,7 +715,6 @@ export default function FinanceDashboard({
                       hideSummary: !appearance.hideSummary,
                     })
                   }
-                  onExpense={() => setOpen(true)}
                   onTransaction={async (id) => {
                     const { data, error } = await supabase
                       .from("transactions")
@@ -1171,9 +1138,9 @@ export default function FinanceDashboard({
         ))}
         <button
           className="mobile-add"
-          aria-label="เพิ่มรายจ่าย"
+          aria-label="เพิ่มรายการ"
           disabled={busy || !snapshot?.accounts.length}
-          onClick={() => setOpen(true)}
+          onClick={() => setEntryMenu(true)}
         >
           <span>
             <Plus size={24} />
@@ -1200,6 +1167,8 @@ export default function FinanceDashboard({
       </nav>
       {snapshot && (
         <>
+          <EntryMenu open={entryMenu} onOpenChange={setEntryMenu} goals={snapshot.goals} onExpense={() => setOpen(true)} onIncome={() => openAction({type:"income"})} onSavings={goal => openAction(goal ? {type:"earmark",goal} : {type:"goal"})} />
+          <button className="desktop-entry-add" aria-label="เพิ่มรายการ" onClick={() => setEntryMenu(true)} disabled={busy || !snapshot.accounts.length}><Plus size={26}/></button>
           {editingCategory && (
             <CategoryDialog
               key={editingCategory.id}
