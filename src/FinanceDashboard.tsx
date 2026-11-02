@@ -1,3 +1,4 @@
+import { NavigationArtwork } from "./components/NavigationArtwork";
 import { BudgetTile } from "./components/BudgetTile";
 import { GardenDoodle } from "./components/GardenDoodle";
 import { DuckPlus, DuckStamp, DuckLoading } from "./components/DuckCompanions";
@@ -16,19 +17,15 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
-  ChartNoAxesCombined,
   Star,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
-  Home,
   LogOut,
   Plus,
   RefreshCw,
-  Settings,
   ShieldCheck,
   Target,
-  TrendingUp,
   Wallet,
 } from "lucide-react";
 import { supabase } from "./supabase";
@@ -65,11 +62,11 @@ import {
 const Insights = lazy(() => import("./components/Insights"));
 const Comparison = lazy(() => import("./components/Comparison"));
 const nav = [
-  { id: "home", label: "ภาพรวม", icon: Home },
-  { id: "wallets", label: "งบรายเดือน", icon: Wallet },
-  { id: "insights", label: "ข้อมูลเชิงลึก", icon: TrendingUp },
-  { id: "compare", label: "เปรียบเทียบ", icon: ChartNoAxesCombined },
-];
+  { id: "home", label: "ภาพรวม" },
+  { id: "wallets", label: "งบรายเดือน" },
+  { id: "insights", label: "ข้อมูลเชิงลึก" },
+  { id: "compare", label: "เปรียบเทียบ" },
+] as const;
 export default function FinanceDashboard({
   user,
   name,
@@ -342,7 +339,7 @@ export default function FinanceDashboard({
               className={`nav-item ${page === n.id ? "active" : ""}`}
               onClick={() => setPage(n.id)}
             >
-              <span className="notebook-nav-icon"><n.icon size={20} /></span>
+              <span className="notebook-nav-icon"><NavigationArtwork name={n.id}/></span>
               {n.label}
             </button>
           ))}
@@ -361,7 +358,7 @@ export default function FinanceDashboard({
             className={`nav-item ${page === "settings" ? "active" : ""}`}
             onClick={() => setPage("settings")}
           >
-            <Settings size={19} />
+            <NavigationArtwork name="settings" size={26}/>
             ตั้งค่าและหมวด
           </button>
           <button className="nav-item" onClick={onDemo}>
@@ -431,7 +428,7 @@ export default function FinanceDashboard({
         </header>
         <main className="real-main"><GardenDoodle kind="flower" className="workspace-flower"/>
           {page !== "home" && (<div className="page-heading">
-            <DuckMascot pose={page === "wallets" ? "save" : page === "settings" ? "wave" : "chart"} className="page-heading-duck"/>
+            <DuckMascot pose={page === "wallets" ? "organize" : page === "settings" ? "wave" : "chart"} className="page-heading-duck"/>
             <div>
               <h1>
                 {page === "home"
@@ -851,7 +848,7 @@ export default function FinanceDashboard({
             className={page === n.id ? "active" : ""}
             onClick={() => setPage(n.id)}
           >
-            <span className="notebook-nav-icon"><n.icon size={20} /></span>
+            <span className="notebook-nav-icon"><NavigationArtwork name={n.id}/></span>
             <span>{n.label}</span>
           </button>
         ))}
@@ -874,7 +871,7 @@ export default function FinanceDashboard({
             className={page === n.id ? "active" : ""}
             onClick={() => setPage(n.id)}
           >
-            <span className="notebook-nav-icon"><n.icon size={20} /></span>
+            <span className="notebook-nav-icon"><NavigationArtwork name={n.id}/></span>
             <span>{n.label}</span>
           </button>
         ))}
@@ -882,7 +879,7 @@ export default function FinanceDashboard({
           className={page === "settings" ? "active" : ""}
           onClick={() => setPage("settings")}
         >
-          <Settings size={20} />
+          <NavigationArtwork name="settings"/>
           <span>ตั้งค่า</span>
         </button>
         </div>

@@ -1,3 +1,4 @@
+import { GardenDoodle } from './GardenDoodle';
 import gardenHeader from '../assets/duck-garden-header.webp';
 import { BudgetTile } from "./BudgetTile";
 import { DuckLoading } from "./DuckCompanions";
@@ -376,9 +377,9 @@ export function HomeDashboard({
 
                   <svg className="daily-meter-svg" viewBox="0 0 300 250" aria-hidden="true">
                     {Array.from({ length: 49 }, (_, i) => <line key={i} x1={i % 4 === 0 ? 252 : 258} y1="130" x2="270" y2="130" transform={`rotate(${150 + i * 5} 150 130)`} stroke={homeMoney(dailyTarget) > 0 && i <= percent * .48 ? "#e8bf60" : "var(--meter-track)"} strokeWidth={i % 4 === 0 ? 3 : 2} strokeLinecap="round" />)}
-                    <g className="duck-meter-pointer" style={{transform:`translate(${150+Math.cos((150+percent*2.4)*Math.PI/180)*120}px, ${130+Math.sin((150+percent*2.4)*Math.PI/180)*120}px) rotate(${percent*.6-30}deg)`}}><foreignObject x="-21" y="-24" width="42" height="43"><DuckMascot pose="wave" className="painted-gauge-duck"/></foreignObject></g>
+                    <g className="duck-meter-pointer" style={{transform:`translate(${150+Math.cos((150+percent*2.4)*Math.PI/180)*120}px, ${130+Math.sin((150+percent*2.4)*Math.PI/180)*120}px) rotate(${percent*.6-30}deg)`}}><foreignObject x="-21" y="-24" width="42" height="43"><DuckMascot pose="meter" className="painted-gauge-duck"/></foreignObject></g>
                   </svg>
-                  <div className="gauge-garden painted-gauge-garden" aria-hidden="true"><span style={{backgroundImage:`url(${gardenHeader})`}}/><span style={{backgroundImage:`url(${gardenHeader})`}}/></div>
+                  <div className="gauge-garden painted-gauge-garden" aria-hidden="true"><GardenDoodle kind="flower"/><GardenDoodle kind="sprout"/><GardenDoodle kind="flower"/></div>
                   <div className="gauge-value">
                     <span>ใช้วันนี้</span>
                     <strong>{amount(data.daily.expenses)}</strong>
@@ -435,7 +436,7 @@ export function HomeDashboard({
                     ))}
                   </div>
                 ) : (
-                  <div className="home-empty"><span className="duck-resting"><DuckMascot pose="sleep" className="empty-duck"/><i>z z</i></span><strong>ยังไม่มีรายการในวันที่เลือก</strong><small>พร้อมเมื่อไหร่ ค่อยจดกัน · แตะ + เพื่อเริ่ม</small></div>
+                  <div className="home-empty"><span className="duck-resting"><DuckMascot pose="rest" className="empty-duck"/><i>z z</i></span><strong>ยังไม่มีรายการในวันที่เลือก</strong><small>พร้อมเมื่อไหร่ ค่อยจดกัน · แตะ + เพื่อเริ่ม</small></div>
                 )}
               </div>
             </div>

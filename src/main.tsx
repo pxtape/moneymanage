@@ -5,4 +5,5 @@ import './styles.css';
 import './notebook.css';
 import './compact.css';
 import './home-garden.css';
+import './illustrations.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Root/></React.StrictMode>);
