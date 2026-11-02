@@ -10,11 +10,11 @@ test('daily home edits expense and income from an earlier month and refreshes th
   const rows = [
     { id: 'expense', kind: 'expense', amount: '80.00', merchant: 'อาหาร', category_id: 'food' },
     { id: 'income', kind: 'income', amount: '500.00', merchant: 'รายรับ', category_id: null },
-  ].map(t => ({ ...t, owner_id: id, account_id: 'account', destination_account_id: null, household_id: null, envelope_id: null, notes: null, tag: 'need', occurred_on: date, refund_of_id: null, updated_at: date+'T00:00:00Z', created_at: date+'T00:00:00Z', deleted_at: null }));
+  ].map(t => ({ ...t, owner_id: id, account_id: 'account', destination_account_id: null, household_id: null, envelope_id: null, notes: null, tag: 'need', occurred_on: date, refund_of_id: null, updated_at: date+'T00:00:00Z', created_at: date+'T00:00:00Z', deleted_at: null, income_category_code: null as string|null, category_name_snapshot: null as string|null }));
   const state = { month: '2026-11-01', current_period_exists: true, accounts: [{ id: 'account', name: 'เงินรวม', kind: 'bank', balance: '420.00', opening_balance: '0' }], categories: [{ id: 'food', name: 'อาหาร', icon: '🍜', tag: 'need', envelope: null }], envelopes: [], goals: [], contributions: [], income: '500.00', expenses: '80.00', cash: '420.00', savings: '0', transactions: [] as Record<string,unknown>[], transaction_count: 0 };
   await mockWeekly(page);
   await page.route('**/rest/v1/profiles*', r => r.fulfill({ json: { display_name: 'tape', onboarding_completed_at: date+'T00:00:00Z' } }));
-  await page.route('**/rest/v1/rpc/moneyspace_snapshot', r => r.fulfill({ json: state }));
+  await page.route('**/rest/v1/rpc/moneyspace_snapshot_v2', r => r.fulfill({ json: state }));
   await mockHome(page, () => ({ ...state, transactions: rows }));
   let failRead = true;
   await page.route('**/rest/v1/transactions?*', r => {
@@ -25,13 +25,21 @@ test('daily home edits expense and income from an earlier month and refreshes th
     return r.fulfill({ json: rows.find(t => 'eq.'+t.id === url.searchParams.get('id')) });
   });
   let writes = 0;
-  await page.route('**/rest/v1/rpc/moneyspace_write', r => {
+  let additions = 0;
+  await page.route(/\/rest\/v1\/rpc\/moneyspace_write(?:_income)?$/, r => {
     const { p_action, p_data } = r.request().postDataJSON();
+    if(p_action==='add_transaction'){
+      expect(p_data.kind).toBe('income');expect(p_data.income_category_code).toBe('salary');
+      rows.push({...rows[1],id:'income-new',merchant:'เงินเดือน',amount:p_data.amount,income_category_code:'salary',category_name_snapshot:'เงินเดือน',occurred_on:p_data.date});
+      state.income=String(Number(state.income)+Number(p_data.amount));state.cash=(Number(state.income)-Number(state.expenses)).toFixed(2);additions++;
+      return r.fulfill({json:{confirmed:true,id:'income-new',action:p_action}});
+    }
     expect(p_action).toBe('edit_transaction');
     const row = rows.find(t => t.id === p_data.id)!;
     expect(p_data.version).toBe(row.updated_at);
     expect(p_data.date).toBe(date);
     row.amount = p_data.amount;
+    if(row.kind==='income'){expect(p_data.income_category_code).toBe('freelance');row.income_category_code=p_data.income_category_code;row.category_name_snapshot='รับจ้าง';}
     row.updated_at = date+'T01:00:00Z';
     writes++;
     state.expenses = rows[0].amount; state.income = rows[1].amount;
@@ -51,6 +59,7 @@ test('daily home edits expense and income from an earlier month and refreshes th
     await expect(page.getByRole('dialog')).toContainText('รายละเอียดรายการ');
     await page.getByRole('button', { name: 'แก้ไข', exact: true }).click();
     await page.getByLabel('จำนวนเงิน (บาท)', { exact: true }).fill(value);
+    if(name==='รายรับ')await page.getByRole('button',{name:'รับจ้าง',exact:true}).click();
     await page.getByRole('dialog').getByRole('button', { name: 'บันทึก', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(dateInput).toHaveValue(date);
@@ -76,7 +85,14 @@ test('daily home edits expense and income from an earlier month and refreshes th
   await page.screenshot({path:'artifacts/'+test.info().project.name+'-entry-menu.png'});
   await page.getByRole('button',{name:'รายได้',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('บันทึกรายรับ');
-  await page.getByRole('button',{name:'ปิด',exact:true}).click();
+  await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('1000');
+  await page.getByRole('dialog').getByRole('button',{name:'บันทึก',exact:true}).click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('เลือกหมวดรายได้');
+  await page.getByRole('button',{name:'เงินเดือน',exact:true}).click();
+  await page.screenshot({path:'artifacts/'+test.info().project.name+'-income-categories.png',fullPage:true});
+  await page.getByRole('dialog').getByRole('button',{name:'บันทึก',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'ดูและแก้ไข เงินเดือน',exact:true})).toContainText('1,000.00');
   await page.getByRole('button',{name:'เพิ่มรายการ',exact:true}).filter({visible:true}).first().click();
   await page.getByRole('button',{name:'กันออม',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('สร้างเป้าหมายเงินออม');
@@ -84,6 +100,12 @@ test('daily home edits expense and income from an earlier month and refreshes th
   await expect(page.locator('.dialog-overlay')).toHaveCount(0);
   await page.screenshot({path:'artifacts/'+test.info().project.name+'-compact-home.png',fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.getByRole('button',{name:'ดูและแก้ไข รายรับ',exact:true}).click();
+  await expect(page.getByRole('dialog')).toContainText('รับจ้าง');
+  await page.getByRole('button',{name:'แก้ไข',exact:true}).click();
+  await expect(page.getByRole('button',{name:'รับจ้าง',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'ปิด',exact:true}).click();
   expect(writes).toBe(2);
+  expect(additions).toBe(1);
   expect(errors).toEqual([]);
 });

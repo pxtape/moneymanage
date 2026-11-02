@@ -123,7 +123,7 @@ test("monthly liquidity plan separates forecasts from money and persists monthly
       },
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (r) => {
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (r) => {
     const m = r.request().postDataJSON().p_month;
     return r.fulfill({
       json: {

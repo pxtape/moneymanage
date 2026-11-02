@@ -81,7 +81,7 @@ test("comparison requires mutual sharing, charts fit both screens, and pink pers
       },
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (r) =>
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (r) =>
     r.fulfill({ json: snapshot }),
   );
   await mockWeekly(page);
@@ -421,7 +421,7 @@ test("reminders can be configured, dismissed and do not appear as push notificat
       },
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (r) =>
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (r) =>
     r.fulfill({
       json: {
         month,

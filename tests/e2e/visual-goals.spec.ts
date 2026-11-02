@@ -130,7 +130,7 @@ test("visual plans and goal management keep actual money separate and celebrate 
       },
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (r) =>
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (r) =>
     r.fulfill({ json: state }),
   );
   await mockHome(page, () => state);

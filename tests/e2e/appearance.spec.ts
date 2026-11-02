@@ -122,7 +122,7 @@ test("personal pockets, pinned categories and private weekly cards work without 
       },
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (r) =>
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (r) =>
     r.fulfill({ json: state }),
   );
   await mockHome(page, () => state);
@@ -223,8 +223,8 @@ test("personal pockets, pinned categories and private weekly cards work without 
     page.locator(".envelope-tile .pocket-cover").first(),
   ).toHaveAttribute("data-cover", "dots");
   await expect(
-    page.locator(".envelope-tile .pocket-cover").first(),
-  ).toContainText("🚀");
+    page.locator(".envelope-tile .pocket-cover").first().locator(".category-artwork"),
+  ).toBeVisible();
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).click();
   await expect(page.getByTestId("actual-spendable")).toContainText("6,500.00");
   await page.getByRole("tab", { name: "รายสัปดาห์", exact: true }).click();

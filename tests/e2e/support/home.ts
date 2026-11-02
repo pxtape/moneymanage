@@ -22,7 +22,7 @@ export async function mockHome(page: Page, getSnapshot: () => Snapshot) {
     if (amount !== undefined) target = amount;
     return route.fulfill({json: target});
   });
-  await page.route("**/rest/v1/rpc/moneyspace_home", (route) => {
+  await page.route("**/rest/v1/rpc/moneyspace_home_v2", (route) => {
     const state = getSnapshot();
     const date = route.request().postDataJSON().p_date as string;
     const cash = state.cash || "0";

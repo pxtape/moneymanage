@@ -1,3 +1,5 @@
+import { CategoryArtwork } from "./CategoryArtwork";
+import { DuckFace } from "./DuckFace";
 import { DuckMascot } from "./DuckMascot";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -139,7 +141,7 @@ export function HomeDashboard({
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    const { data: result, error } = await supabase.rpc("moneyspace_home", {
+    const { data: result, error } = await supabase.rpc("moneyspace_home_v2", {
       p_date: date,
     });
     if (error || !result) {
@@ -358,7 +360,7 @@ export function HomeDashboard({
                   <DuckMascot pose="tea" className="meter-duck"/>
                   <svg className="daily-meter-svg" viewBox="0 0 300 250" aria-hidden="true">
                     {Array.from({ length: 49 }, (_, i) => <line key={i} x1={i % 4 === 0 ? 252 : 258} y1="130" x2="270" y2="130" transform={`rotate(${150 + i * 5} 150 130)`} stroke={homeMoney(dailyTarget) > 0 && i <= percent * .48 ? "var(--mint)" : "var(--meter-track)"} strokeWidth={i % 4 === 0 ? 3 : 2} strokeLinecap="round" />)}
-                    <g transform={`rotate(${150 + percent * 2.4} 150 130)`}><line x1="250" y1="130" x2="274" y2="130" stroke="#ef697c" strokeWidth="5" strokeLinecap="round" /></g>
+                    <g className="duck-meter-pointer" style={{transform:`translate(${150+Math.cos((150+percent*2.4)*Math.PI/180)*120}px, ${130+Math.sin((150+percent*2.4)*Math.PI/180)*120}px) rotate(${percent*.6-30}deg)`}}><DuckFace/></g>
                   </svg>
                   <div>
                     <span>ใช้วันนี้</span>
@@ -403,7 +405,7 @@ export function HomeDashboard({
                         </span>
                         <span>
                           <strong>
-                            {t.icon} {t.merchant}
+                            <CategoryArtwork icon={t.kind === "income" ? null : t.icon} name={t.category}/>{t.merchant}
                           </strong>
                           <small>{t.category}</small>
                         </span>
@@ -457,7 +459,7 @@ export function HomeDashboard({
                       <div key={c.name}>
                         <i style={{ background: colors[i % colors.length] }} />
                         <span>
-                          {c.icon} {c.name}
+                          <CategoryArtwork icon={c.icon} name={c.name}/>{c.name}
                         </span>
                         <strong>{amount(c.amount)}</strong>
                       </div>
@@ -580,7 +582,7 @@ export function HomeDashboard({
                 <article key={b.id}>
                   <div>
                     <span>
-                      {b.icon} <strong>{b.name}</strong>
+                      <CategoryArtwork icon={b.icon} name={b.name}/><strong>{b.name}</strong>
                     </span>
                     <b
                       className={

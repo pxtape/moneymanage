@@ -106,7 +106,7 @@ test("real-space form retries the same request after an uncertain response; mont
       },
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (route) =>
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (route) =>
     route.fulfill({ json: state }),
   );
   await mockHome(page, () => state);
@@ -176,7 +176,7 @@ test("real-space form retries the same request after an uncertain response; mont
   await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
   await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("80");
-  await page.getByRole("button", { name: "🍜 อาหาร", exact: true }).click();
+  await page.getByRole("button", { name: "อาหาร", exact: true }).click();
   await page
     .getByRole("button", { name: "บันทึกรายจ่าย", exact: true })
     .click();

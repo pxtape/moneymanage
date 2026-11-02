@@ -114,7 +114,7 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
       },
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (route) =>
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (route) =>
     route.fulfill({ json: state }),
   );
   await mockHome(page, () => state);
@@ -161,7 +161,7 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
     .getByRole("button", { name: "แก้ไขหมวด อาหาร", exact: true })
     .click();
   await page.getByLabel("ชื่อหมวด", { exact: true }).fill("มื้อพัก");
-  await page.getByRole("button", { name: "ใช้ 🥗", exact: true }).click();
+  await page.getByRole("button", { name: "ใช้รูปผักและอาหาร", exact: true }).click();
   await page
     .getByLabel("ประเภทเริ่มต้นของหมวด", { exact: true })
     .selectOption("want");
@@ -171,20 +171,20 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
   reject = false;
   await page.getByRole("button", { name: "บันทึกหมวด", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.locator(".category-mappings")).toContainText("🥗 มื้อพัก");
+  await expect(page.locator(".category-mappings")).toContainText("มื้อพัก");
   await expect(page.locator(".category-mappings")).toContainText(
     "ความสุข · Want",
   );
   await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
   await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
-  await page.getByRole("button", { name: "🥗 มื้อพัก", exact: true }).click();
+  await page.getByRole("button", { name: "มื้อพัก", exact: true }).click();
   await page
     .getByRole("button", { name: "เพิ่มเติม เฉพาะเมื่ออยากจด", exact: true })
     .click();
   await expect(page.getByLabel("จำเป็น / ความสุข")).toHaveValue("want");
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
-  await expect(page.locator(".ledger-row")).toContainText("🍜 อาหาร");
+  await expect(page.locator(".ledger-row")).toContainText("อาหาร");
   await expect(page.locator(".ledger-row")).not.toContainText("มื้อพัก");
   await expect(page.getByTestId("actual-expenses")).toContainText("80.00");
   await page.getByRole("button", { name: "tape", exact: true }).click();
@@ -198,11 +198,11 @@ test("rename emoji and delete a category without relabeling the old ledger or lo
   await page.getByRole("button", {name:"เพิ่มรายการ",exact:true}).filter({visible:true}).first().click();
   await page.getByRole("button", {name:"รายจ่าย",exact:true}).click();
   await expect(
-    page.getByRole("button", { name: "🥗 มื้อพัก", exact: true }),
+    page.getByRole("button", { name: "มื้อพัก", exact: true }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
-  await expect(page.locator(".ledger-row")).toContainText("🍜 อาหาร");
+  await expect(page.locator(".ledger-row")).toContainText("อาหาร");
   await page.locator(".ledger-row").click();
   await page.getByRole("button", { name: "แก้ไข", exact: true }).click();
   await expect(page.getByLabel("หมวดรายการ")).toHaveValue("food");

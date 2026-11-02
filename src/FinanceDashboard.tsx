@@ -1,3 +1,4 @@
+import { CategoryArtwork } from "./components/CategoryArtwork";
 import { DuckMascot } from "./components/DuckMascot";
 import { EntryMenu } from "./components/EntryMenu";
 import { NotificationCenter } from "./components/NotificationCenter";
@@ -143,7 +144,7 @@ export default function FinanceDashboard({
   const load = useCallback(async () => {
     const version = ++generation.current;
     const requestedMonth = monthRef.current;
-    let { data, error } = await supabase.rpc("moneyspace_snapshot", {
+    let { data, error } = await supabase.rpc("moneyspace_snapshot_v2", {
       p_month: requestedMonth,
     });
     if (!error && data?.current_period_exists === false) {
@@ -157,7 +158,7 @@ export default function FinanceDashboard({
       });
       if (initialized.error || !initialized.data?.confirmed)
         throw new Error("ยังไม่ได้ยืนยันงบเดือนปัจจุบัน");
-      const next = await supabase.rpc("moneyspace_snapshot", {
+      const next = await supabase.rpc("moneyspace_snapshot_v2", {
         p_month: requestedMonth,
       });
       data = next.data;
@@ -194,7 +195,7 @@ export default function FinanceDashboard({
     setError("");
     setNotice("");
     try {
-      const { data, error } = await supabase.rpc("moneyspace_write", {
+      const { data, error } = await supabase.rpc(payload.kind === "income" && (operation === "add_transaction" || operation === "edit_transaction") ? "moneyspace_write_income" : "moneyspace_write", {
         p_action: operation,
         p_data: payload,
         p_key: key,
@@ -364,7 +365,7 @@ export default function FinanceDashboard({
                     ?.name;
                 const detail =
                   category && category !== t.merchant
-                    ? `${t.category_icon_snapshot || ""} ${category}`
+                    ? category
                     : t.kind === "expense"
                       ? t.tag === "want"
                         ? "ความสุข"
@@ -391,9 +392,7 @@ export default function FinanceDashboard({
                     </span>
                     <span className="transaction-name">
                       <strong>
-                        {t.category_icon_snapshot && category === t.merchant
-                          ? `${t.category_icon_snapshot} `
-                          : ""}
+                        <CategoryArtwork icon={t.category_icon_snapshot} name={category}/>
                         {t.merchant}
                       </strong>
                       {detail && <small>{detail}</small>}
@@ -717,14 +716,14 @@ export default function FinanceDashboard({
                   onTransaction={async (id) => {
                     const { data, error } = await supabase
                       .from("transactions")
-                      .select("id,account_id,destination_account_id,kind,amount::text,category_id,category_name_snapshot,category_icon_snapshot,food_drink_snapshot,spending_group_snapshot,envelope_id,envelope_name_snapshot,merchant,notes,tag,occurred_on,refund_of_id,updated_at,created_at")
+                      .select("id,account_id,destination_account_id,kind,amount::text,income_category_code,income_category_name_snapshot,category_id,category_name_snapshot,category_icon_snapshot,food_drink_snapshot,spending_group_snapshot,envelope_id,envelope_name_snapshot,merchant,notes,tag,occurred_on,refund_of_id,updated_at,created_at")
                       .eq("id", id)
                       .eq("owner_id", user.id)
                       .is("household_id", null)
                       .is("deleted_at", null)
                       .single();
                     if (error || !data) throw new Error("Transaction unavailable");
-                    openAction({ type: "details", item: data as LedgerTransaction });
+                    openAction({ type: "details", item: {...data,category_name_snapshot:data.kind === "income" ? (data.income_category_name_snapshot ?? data.category_name_snapshot) : data.category_name_snapshot} as LedgerTransaction });
                   }}
                 />
               )}
@@ -777,7 +776,7 @@ export default function FinanceDashboard({
                                 className="pocket-cover"
                                 data-cover={e.cover || "waves"}
                               >
-                                <span aria-hidden="true">{e.icon || "👛"}</span>
+                                <span aria-hidden="true"><CategoryArtwork icon={e.icon} name={e.name}/></span>
                               </div>
                               <div className="section-heading">
                                 <h3>
@@ -970,7 +969,7 @@ export default function FinanceDashboard({
                       {snapshot.categories.map((c) => (
                         <div key={c.id}>
                           <span>
-                            {c.icon} {c.name}
+                            <CategoryArtwork icon={c.icon} name={c.name}/>{c.name}
                             <small className="category-default-tag">
                               {c.tag === "want"
                                 ? "ความสุข · Want"

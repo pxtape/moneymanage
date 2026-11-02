@@ -130,7 +130,7 @@ test("real analytics loads all aggregates, explains averages, retries errors and
       },
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (route) =>
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (route) =>
     route.fulfill({ json: snapshot }),
   );
   await mockHome(page, () => snapshot);

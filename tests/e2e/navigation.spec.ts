@@ -22,7 +22,7 @@ test("quick expense needs only amount and category", async ({ page }) => {
     page.getByLabel("ชื่อรายการ / ร้านค้า (ไม่จำเป็น)"),
   ).not.toBeVisible();
   await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("120.50");
-  await page.getByRole("button", { name: "🍜 อาหาร", exact: true }).click();
+  await page.getByRole("button", { name: "อาหาร", exact: true }).click();
   await page.screenshot({
     path: `artifacts/${test.info().project.name}-quick-entry.png`,
     fullPage: true,
@@ -53,7 +53,7 @@ test("custom category can be reused without typing a transaction title", async (
   await page.getByLabel("ชื่อหมวดใหม่").fill("สัตว์เลี้ยง");
   await page.getByRole("button", { name: "เพิ่มไว้ใช้ซ้ำ" }).click();
   await expect(
-    page.getByRole("button", { name: "✳️ สัตว์เลี้ยง", exact: true }),
+    page.getByRole("button", { name: "สัตว์เลี้ยง", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("50");
   await page
@@ -64,7 +64,7 @@ test("custom category can be reused without typing a transaction title", async (
     .first()
     .click();
   await expect(
-    page.getByRole("button", { name: "✳️ สัตว์เลี้ยง", exact: true }),
+    page.getByRole("button", { name: "สัตว์เลี้ยง", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("25");
   await page
@@ -85,7 +85,7 @@ test("validates missing category, bad amounts, and supports optional detail", as
     .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText("เลือกหมวด");
-  await page.getByRole("button", { name: "🍜 อาหาร", exact: true }).click();
+  await page.getByRole("button", { name: "อาหาร", exact: true }).click();
   await page.getByLabel("จำนวนเงิน (บาท)", { exact: true }).fill("10.001");
   await page
     .getByRole("button", { name: "จดรายการตัวอย่าง", exact: true })
@@ -190,7 +190,7 @@ test("mocked authenticated onboarding waits for server and persistent category c
         : null,
     }),
   );
-  await page.route("**/rest/v1/rpc/moneyspace_snapshot", (route) =>
+  await page.route("**/rest/v1/rpc/moneyspace_snapshot_v2", (route) =>
     route.fulfill({
       json: {
         month: route.request().postDataJSON().p_month,
@@ -219,7 +219,7 @@ test("mocked authenticated onboarding waits for server and persistent category c
     }),
   );
   await page.route("**/rest/v1/rpc/moneyspace_daily_target", route => route.fulfill({json:"0.00"}));
-  await page.route("**/rest/v1/rpc/moneyspace_home", (route) => {
+  await page.route("**/rest/v1/rpc/moneyspace_home_v2", (route) => {
     const date = route.request().postDataJSON().p_date;
     return route.fulfill({
       json: {
