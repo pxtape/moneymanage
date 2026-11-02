@@ -1,5 +1,11 @@
 import type { DuckPose } from './components/DuckMascot';
 export const pocketArtwork: {icon:string;name:string;pose:DuckPose}[] = [
+ {icon:'✉️',name:'จัดซองเงิน',pose:'organize'},{icon:'🪙',name:'รับเหรียญ',pose:'receive'},
+ {icon:'🏦',name:'หยอดโหล',pose:'deposit'},{icon:'🌿',name:'รดน้ำออม',pose:'grow'},
+ {icon:'📅',name:'ปฏิทิน',pose:'calendar'},{icon:'🖊️',name:'จดสมุด',pose:'record'},
+ {icon:'🚌',name:'รอรถ',pose:'commute'},{icon:'🍲',name:'ก๋วยเตี๋ยว',pose:'noodles'},
+ {icon:'😴',name:'พักสมุด',pose:'rest'},{icon:'💐',name:'ฉลอง',pose:'celebrate'},
+ {icon:'🔎',name:'ค้นสมุด',pose:'search'},{icon:'🎯',name:'เกาะเป้า',pose:'meter'},
  {icon:'🐥',name:'ทักทาย',pose:'wave'},{icon:'🍜',name:'อาหาร',pose:'food'},
  {icon:'🧋',name:'เครื่องดื่ม',pose:'drink'},{icon:'🎒',name:'เดินทาง',pose:'travel'},
  {icon:'📒',name:'จดเงิน',pose:'journal'},{icon:'🌱',name:'เงินออม',pose:'save'},

@@ -154,7 +154,7 @@ test("selectable single pocket artwork and pinned categories work without changi
       }
     } else if (b.p_action === "allocate") {
       expect(b.p_data.color).toBe("#80e6bd");
-      expect(b.p_data.pocket_icon).toBe("🎒");
+      expect(b.p_data.pocket_icon).toBe("🌿");
       expect(b.p_data.cover).toBe("waves");
       expect(b.p_data.amount).toBe("6000.00");
       state.envelopes[0] = {
@@ -207,14 +207,17 @@ test("selectable single pocket artwork and pinned categories work without changi
   await page.getByRole("button", { name: "ปิด", exact: true }).click();
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
   await page.getByRole("button", { name: /^แก้งบ / }).click();
-  await page.getByRole("button", {name:"เลือกรูปเดินทาง",exact:true}).click();
+  await expect(page.locator('.pocket-art-picker [aria-pressed]')).toHaveCount(22);
+  await expect(page.getByRole("button", {name:"เลือกรูปเดินทาง",exact:true})).toBeVisible();
+  await page.screenshot({path:`artifacts/${test.info().project.name}-illustrated-budget-picker.png`,animations:'disabled'});
+  await page.getByRole("button", {name:"เลือกรูปรดน้ำออม",exact:true}).click();
   await page.getByRole("button", { name: "บันทึกงบ", exact: true }).click();
   await expect(page.getByTestId("actual-cash")).toContainText(/7,000(?:\.00)?/);
   await expect(page.locator('.budget-tile .duck-mascot')).toHaveCount(1);
   await page.reload();
   await page.getByRole("button", { name: "งบรายเดือน", exact: true }).click();
   await page.getByRole("button", {name:/^แก้งบ /}).click();
-  await expect(page.getByRole("button", {name:"เลือกรูปเดินทาง",exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole("button", {name:"เลือกรูปรดน้ำออม",exact:true})).toHaveAttribute('aria-pressed','true');
   await page.getByRole("button", {name:"ปิด",exact:true}).click();
   await page.getByRole("button", { name: "ภาพรวม", exact: true }).click();
   await expect(page.getByTestId("actual-spendable")).toContainText(/6,500(?:\.00)?/);

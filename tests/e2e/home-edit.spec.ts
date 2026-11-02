@@ -49,7 +49,10 @@ test('daily home edits expense and income from an earlier month and refreshes th
   });
   const errors: string[] = [];page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
-  await expect(page.getByRole('heading',{name:'MONEYSPACE',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'MONEYSPACE',exact:true})).toHaveText('MONEYSPACE');
+  await expect(page.locator('.home-painted-header')).toBeVisible();
+  await expect(page.locator('.bottom-nav .navigation-artwork')).toHaveCount(5);
+  expect(await page.locator('.home-painted-header').evaluate((img:HTMLImageElement)=>img.complete&&img.naturalWidth>0)).toBe(true);
   if(test.info().project.name==='mobile'){
     const row=await page.locator('.home-day-transaction').first().boundingBox();
     const nav=await page.locator('.bottom-nav').boundingBox();
@@ -102,9 +105,13 @@ test('daily home edits expense and income from an earlier month and refreshes th
   await expect(page.getByTestId('actual-expenses')).toContainText('90.50');
   await page.getByRole('button',{name:'เพิ่มรายการ',exact:true}).filter({visible:true}).first().click();
   await expect(page.getByRole('dialog')).toContainText('จดอะไรดี');
+  await expect(page.locator('.entry-menu-options [data-duck-pose=receive]')).toBeVisible();
+  await expect(page.locator('.entry-menu-options [data-duck-pose=record]')).toBeVisible();
+  await expect(page.locator('.entry-menu-options [data-duck-pose=deposit]')).toBeVisible();
   await page.screenshot({animations:'disabled',path:'artifacts/'+test.info().project.name+'-entry-menu.png'});
   await page.getByRole('button',{name:'รายได้',exact:true}).click();
   await expect(page.getByRole('dialog')).toContainText('บันทึกรายรับ');
+  await expect(page.locator('.amount-duck [data-duck-pose=receive]')).toBeVisible();
   await page.getByLabel('จำนวนเงิน (บาท)',{exact:true}).fill('1000');
   await page.getByRole('dialog').getByRole('button',{name:'บันทึก',exact:true}).click();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('เลือกหมวดรายได้');
@@ -132,5 +139,9 @@ test('daily home edits expense and income from an earlier month and refreshes th
   await expect(page.getByRole('button',{name:'น้องช่วยอ่านกราฟ',exact:true})).toHaveCount(0);
   await expect(page.locator('.duck-postcard')).toHaveCount(0);
   if(test.info().project.name==='mobile'){const box=await page.locator('.bottom-nav .mobile-add').boundingBox();expect(Math.abs(box!.x+box!.width/2-195)).toBeLessThan(1);const plus=await page.locator('.bottom-nav .duck-plus>svg:last-child').boundingBox();expect(Math.abs(plus!.x+plus!.width/2-195)).toBeLessThan(1);}
+  rows.length=0;
+  await page.reload();
+  await expect(page.locator('.home-empty [data-duck-pose=rest]')).toBeVisible();
+  await page.screenshot({animations:'disabled',path:'artifacts/'+test.info().project.name+'-illustrated-empty-day.png'});
   expect(errors).toEqual([]);
 });
